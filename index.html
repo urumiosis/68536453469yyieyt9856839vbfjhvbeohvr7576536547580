@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ANTI MARKARYD</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <!-- Pinned UMD build so window.supabase is always available -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="scanlines"></div>
+
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen" class="screen active">
+    <div class="login-container">
+      <div class="logo-glitch">
+        <h1 data-text="ANTI MARKARYD">ANTI MARKARYD</h1>
+      </div>
+
+      <form id="login-form" class="login-form">
+        <div class="input-group">
+          <label for="email">E-post</label>
+          <input type="email" id="email" name="email" placeholder="din@email.se" required autocomplete="username">
+        </div>
+        <div class="input-group">
+          <label for="password">Lösenord</label>
+          <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn-primary" id="login-btn">
+          <span>LOGGA IN</span>
+        </button>
+        <p id="login-error" class="error-msg" hidden></p>
+      </form>
+
+      <div class="admin-note">
+        <p>🔒 Inget konto? Tala med administratörerna.</p>
+        <p class="small">Endast invigda har tillträde.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD / GAMES SCREEN -->
+  <div id="dashboard-screen" class="screen">
+    <header class="top-bar">
+      <div class="brand">
+        <span class="brand-icon">✕</span>
+        <span>ANTI MARKARYD</span>
+      </div>
+      <div class="user-info">
+        <span id="user-email"></span>
+        <button id="logout-btn" class="btn-ghost">Logga ut</button>
+      </div>
+    </header>
+
+    <main class="dashboard">
+      <section class="hero-banner">
+        <h2 id="welcome-title">Välkommen!</h2>
+      </section>
+
+      <section class="cert-box" id="cert-section" aria-labelledby="cert-heading">
+        <div class="cert-alert-icon" aria-hidden="true"><span>!</span></div>
+        <p class="cert-eyebrow">SÄKERHETSKONTROLL</p>
+        <h2 id="cert-heading" class="cert-heading">CERTIFIKATVERIFIERING KRÄVS</h2>
+        <p class="cert-hint">VARNING: Identiteten måste verifieras innan du får åtkomst. Ladda upp ditt certifikat för att fortsätta.</p>
+        <label class="cert-upload">
+          <input type="file" id="cert-file" accept=".certificate">
+          <span class="btn-play" id="cert-upload-label">Ladda upp</span>
+        </label>
+        <p id="cert-status" class="cert-status" hidden></p>
+      </section>
+
+      <div id="locked-site" hidden>
+      <section class="games-grid" id="games-section">
+        <h3 class="section-title">Spelarkivet</h3>
+        
+        <div class="game-card" data-game="snake">
+          <div class="game-thumb snake-thumb">🐍</div>
+          <div class="game-info">
+            <h4>Ormen</h4>
+            <p>Klassisk snake. Ät, väx, överlev.</p>
+            <button class="btn-play" onclick="openGame('snake')">Spela</button>
+          </div>
+        </div>
+
+        <div class="game-card" data-game="tetris">
+          <div class="game-thumb tetris-thumb">🧱</div>
+          <div class="game-info">
+            <h4>Tetris</h4>
+            <p>Stapla blocken. Rensa raderna.</p>
+            <button class="btn-play" onclick="openGame('tetris')">Spela</button>
+          </div>
+        </div>
+
+        <div class="game-card" data-game="2048">
+          <div class="game-thumb t2048-thumb">🔢</div>
+          <div class="game-info">
+            <h4>2048</h4>
+            <p>Kombinera till 2048. Eller högre.</p>
+            <button class="btn-play" onclick="openGame('2048')">Spela</button>
+          </div>
+        </div>
+
+        <div class="game-card" data-game="flappy">
+          <div class="game-thumb flappy-thumb">🐦</div>
+          <div class="game-info">
+            <h4>Flappy Bird</h4>
+            <p>Flyg mellan rören. Missa inte.</p>
+            <button class="btn-play" onclick="openGame('flappy')">Spela</button>
+          </div>
+        </div>
+
+        <div class="game-card" data-game="pong">
+          <div class="game-thumb pong-thumb">🏓</div>
+          <div class="game-info">
+            <h4>Pong</h4>
+            <p>Den ursprungliga. Enkel. Oändlig.</p>
+            <button class="btn-play" onclick="openGame('pong')">Spela</button>
+          </div>
+        </div>
+
+        <div class="game-card" data-game="minesweeper">
+          <div class="game-thumb mine-thumb">💣</div>
+          <div class="game-info">
+            <h4>Minesweeper</h4>
+            <p>Hitta minorna. Tänk noga.</p>
+            <button class="btn-play" onclick="openGame('minesweeper')">Spela</button>
+          </div>
+        </div>
+
+        <div class="game-card" data-game="topgames">
+          <div class="game-thumb">🎮</div>
+          <div class="game-info">
+            <h4>Topgames</h4>
+            <p>Upptäck och spela fler webbläsarspel.</p>
+            <a class="btn-play" href="https://fr.anyproxy.site/_o/aHR0cHM6Ly90b3BnYW1lcy5nZw" target="_blank" rel="noopener noreferrer">Spela</a>
+          </div>
+        </div>
+
+        <div class="game-card" data-game="crazygames">
+          <div class="game-thumb">🎯</div>
+          <div class="game-info">
+            <h4>Crazygames</h4>
+            <p>Massor av roliga spel direkt i webbläsaren.</p>
+            <a class="btn-play" href="https://fr.anyproxy.site/_o/aHR0cHM6Ly93d3cuY3JhenlnYW1lcy5jb20" target="_blank" rel="noopener noreferrer">Spela</a>
+          </div>
+        </div>
+
+        <div class="game-card" data-game="y8">
+          <div class="game-thumb">🕹️</div>
+          <div class="game-info">
+            <h4>Y8</h4>
+            <p>Utforska ett stort utbud av webbläsarspel.</p>
+            <a class="btn-play" href="https://fr.anyproxy.site/_o/aHR0cHM6Ly93d3cueTguY29t" target="_blank" rel="noopener noreferrer">Spela</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="warning-box">
+        <h4>⚠ VARNING FRÅN ADMINISTRATIONEN</h4>
+        <p>Denna portal är strikt konfidentiell. Använd endast via skolans nätverk om du vågar. Vi tar inget ansvar om du åker dit. Spela smart. Logga ut när du är klar.</p>
+      </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- GAME MODAL -->
+  <div id="game-modal" class="modal" hidden>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="game-title">Spel</h3>
+        <button id="close-game" class="btn-close">✕</button>
+      </div>
+      <div id="game-container" class="game-frame">
+        <!-- Game will be injected here -->
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
