@@ -21,6 +21,84 @@ const certStatus = document.getElementById('cert-status');
 const certUploadLabel = document.getElementById('cert-upload-label');
 const lockedSite = document.getElementById('locked-site');
 const certSection = document.getElementById('cert-section');
+const siteIntro = document.getElementById('site-intro');
+const gamesHeading = document.getElementById('games-heading');
+const gameCards = document.getElementById('game-cards');
+const gamesLoading = document.getElementById('games-loading');
+const gamesError = document.getElementById('games-error');
+const warningBox = document.getElementById('warning-box');
+const warningTitle = document.getElementById('warning-title');
+const warningBody = document.getElementById('warning-body');
+
+function setText(el, value) {
+  if (el && typeof value === 'string') el.textContent = value;
+}
+function makeElement(tag, className, text) {
+  const el = document.createElement(tag);
+  if (className) el.className = className;
+  if (typeof text === 'string') el.textContent = text;
+  return el;
+}
+async function loadSiteContent() {
+  if (!supabase || !currentUser) return;
+  if (gamesLoading) gamesLoading.hidden = false;
+  if (gamesError) gamesError.hidden = true;
+  try {
+    const results = await Promise.all([
+      supabase.from('site_content').select('content').eq('id', 1).maybeSingle(),
+      supabase.from('game_catalog').select('id,title,description,emoji,launch_url,sort_order,enabled').eq('enabled', true).order('sort_order', { ascending: true })
+    ]);
+    const contentResult = results[0], gamesResult = results[1];
+    if (contentResult.error) throw contentResult.error;
+    if (gamesResult.error) throw gamesResult.error;
+    const content = contentResult.data?.content || {};
+    setText(siteIntro, content.site_intro || '');
+    if (siteIntro) siteIntro.hidden = !content.site_intro;
+    setText(gamesHeading, content.games_heading || 'Spelarkivet');
+    setText(document.getElementById('cert-heading'), content.certificate_heading || 'CERTIFIKATVERIFIERING KRÄVS');
+    setText(document.querySelector('.cert-eyebrow'), content.certificate_eyebrow || 'SÄKERHETSKONTROLL');
+    setText(document.querySelector('.cert-hint'), content.certificate_hint || 'Identiteten måste verifieras innan du får åtkomst. Ladda upp ditt certifikat för att fortsätta.');
+    setText(document.getElementById('admin-note'), content.admin_note || '🔒 Inget konto? Tala med administratörerna.');
+    setText(document.getElementById('admin-note-small'), content.admin_note_small || 'Endast invigda har tillträde.');
+    setText(warningTitle, content.warning_title || '⚠ VARNING FRÅN ADMINISTRATIONEN');
+    setText(warningBody, content.warning_body || '');
+    if (warningBox) warningBox.hidden = !content.warning_body;
+    if (gameCards) {
+      gameCards.replaceChildren();
+      for (const game of (gamesResult.data || [])) {
+        const card = makeElement('article', 'game-card');
+        card.dataset.game = game.id;
+        const thumb = makeElement('div', 'game-thumb', game.emoji || '🎮');
+        const info = makeElement('div', 'game-info');
+        info.append(makeElement('h4', '', game.title || 'Spel'));
+        info.append(makeElement('p', '', game.description || ''));
+        if (game.launch_url) {
+          const link = makeElement('a', 'btn-play', 'Spela');
+          link.href = game.launch_url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          info.append(link);
+        } else {
+          const button = makeElement('button', 'btn-play', 'Spela');
+          button.type = 'button';
+          button.addEventListener('click', () => openGame(game.id));
+          info.append(button);
+        }
+        card.append(thumb, info);
+        gameCards.append(card);
+      }
+    }
+    if (gamesLoading) gamesLoading.hidden = true;
+  } catch (err) {
+    console.error('Supabase content load failed:', err);
+    if (gamesLoading) gamesLoading.hidden = true;
+    if (gamesError) {
+      gamesError.textContent = 'Kunde inte ladda innehållet från Supabase. Kontrollera att migrationen och RLS-policyerna är installerade.';
+      gamesError.hidden = false;
+    }
+  }
+}
+
 
 let supabase = null;
 let currentUser = null;
@@ -45,8 +123,8 @@ function initSupabase() {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
       auth: {
         // Never persist a login between page loads or browser sessions.
-        persistSession: false,
-        autoRefreshToken: false,
+        persistSession: true,
+        autoRefreshToken: true,
         detectSessionInUrl: false
       }
     });
@@ -83,6 +161,8 @@ function setSiteUnlocked(unlocked) {
 function showLogin() {
   loginScreen.classList.add('active');
   dashboardScreen.classList.remove('active');
+  dashboardScreen.hidden = true;
+  dashboardScreen.setAttribute('aria-hidden', 'true');
   currentUser = null;
   currentProfile = null;
   setSiteUnlocked(false);
@@ -199,12 +279,16 @@ function verifyCertAgainstProfile(parsed) {
 }
 
 async function showDashboard(user) {
+  if (!user?.id) { showLogin(); return; }
   currentUser = user;
   loginScreen.classList.remove('active');
+  dashboardScreen.hidden = false;
+  dashboardScreen.setAttribute('aria-hidden', 'false');
   dashboardScreen.classList.add('active');
   userEmailEl.textContent = user.email || user.id;
   setSiteUnlocked(false);
   await loadProfile(user);
+  await loadSiteContent();
   setWelcome(displayNameFromUser(user, currentProfile));
   // Never restore a previous certificate verification.
   applyCertToUI(null);
@@ -344,7 +428,7 @@ function stopCurrentGame() {
 }
 
 function openGame(gameId) {
-  if (!isVerified) return;
+  if (!currentUser || dashboardScreen.hidden || !isVerified) return;
   stopCurrentGame();
   gameContainer.innerHTML = '';
   gameModal.hidden = false;
