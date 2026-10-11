@@ -34,3 +34,10 @@ Edit rows in `game_catalog`. Change `title`, `description`, `emoji`, `sort_order
 The dashboard is hidden by default and is only activated after Supabase returns an authenticated user. Auth sessions persist and refresh normally. Content is requested after authentication, and Supabase RLS is the data-access boundary.
 
 This is a static frontend: HTML and JavaScript files can still be downloaded by anyone who knows the site URL. Do not place secrets or sensitive private data in frontend code. Protect sensitive records with RLS and server-side checks. This change protects dashboard content/data, not the source code itself.
+
+
+## One-time AnyProxy instruction
+
+After certificate verification, the dashboard shows a polished Swedish setup card linking to `https://anyproxy.site/`. The user can open the site, press **Go!**, close that tab, and select **Klart, fortsätt**. The acknowledgement is stored per authenticated user in `public.user_onboarding`, so it should not reappear on later visits or other devices.
+
+Apply `supabase/migrations/202610110002_user_onboarding.sql` in the Supabase SQL Editor. The page does not read, capture, or store an AnyProxy session ID; it only links to the external site and remembers that the user dismissed the instruction.
