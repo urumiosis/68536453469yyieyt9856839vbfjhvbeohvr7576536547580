@@ -29,6 +29,11 @@ const gamesError = document.getElementById('games-error');
 const warningBox = document.getElementById('warning-box');
 const warningTitle = document.getElementById('warning-title');
 const warningBody = document.getElementById('warning-body');
+const proxyInstruction = document.getElementById('proxy-instruction');
+const proxyInstructionDone = document.getElementById('proxy-instruction-done');
+const proxyInstructionError = document.getElementById('proxy-instruction-error');
+let proxyInstructionSeen = true;
+
 
 function setText(el, value) {
   if (el && typeof value === 'string') el.textContent = value;
@@ -39,6 +44,51 @@ function makeElement(tag, className, text) {
   if (typeof text === 'string') el.textContent = text;
   return el;
 }
+async function loadProxyInstructionStatus() {
+  if (!supabase || !currentUser?.id) return;
+  // Default to showing the step if its status cannot be read.
+  proxyInstructionSeen = false;
+  try {
+    const { data, error } = await supabase
+      .from('user_onboarding')
+      .select('instruction_key')
+      .eq('user_id', currentUser.id)
+      .eq('instruction_key', 'anyproxy-first-use')
+      .maybeSingle();
+    if (error) throw error;
+    proxyInstructionSeen = !!data;
+  } catch (err) {
+    console.warn('Could not read one-time instruction status:', err);
+  }
+}
+
+async function dismissProxyInstruction() {
+  if (!supabase || !currentUser?.id || !proxyInstructionDone) return;
+  proxyInstructionDone.disabled = true;
+  if (proxyInstructionError) proxyInstructionError.hidden = true;
+  try {
+    const { error } = await supabase.from('user_onboarding').upsert({
+      user_id: currentUser.id,
+      instruction_key: 'anyproxy-first-use'
+    }, { onConflict: 'user_id,instruction_key' });
+    if (error) throw error;
+    proxyInstructionSeen = true;
+    if (proxyInstruction) proxyInstruction.hidden = true;
+  } catch (err) {
+    console.error('Could not save instruction status:', err);
+    if (proxyInstructionError) {
+      proxyInstructionError.textContent = 'Kunde inte spara ditt val. Kontrollera anslutningen och försök igen.';
+      proxyInstructionError.hidden = false;
+    }
+  } finally {
+    proxyInstructionDone.disabled = false;
+  }
+}
+
+if (proxyInstructionDone) {
+  proxyInstructionDone.addEventListener('click', dismissProxyInstruction);
+}
+
 async function loadSiteContent() {
   if (!supabase || !currentUser) return;
   if (gamesLoading) gamesLoading.hidden = false;
@@ -156,6 +206,7 @@ function setSiteUnlocked(unlocked) {
   isVerified = !!unlocked;
   if (lockedSite) lockedSite.hidden = !unlocked;
   if (certSection) certSection.hidden = !!unlocked;
+  if (proxyInstruction) proxyInstruction.hidden = !unlocked || proxyInstructionSeen;
 }
 
 function showLogin() {
@@ -288,6 +339,7 @@ async function showDashboard(user) {
   userEmailEl.textContent = user.email || user.id;
   setSiteUnlocked(false);
   await loadProfile(user);
+  await loadProxyInstructionStatus();
   await loadSiteContent();
   setWelcome(displayNameFromUser(user, currentProfile));
   // Never restore a previous certificate verification.

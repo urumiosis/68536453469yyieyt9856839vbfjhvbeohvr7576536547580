@@ -497,3 +497,93 @@ a.btn-play { display: inline-block; text-decoration: none; }
 /* Ensure the browser's hidden attribute wins over .screen.active. */
 [hidden] { display: none !important; }
 .game-cards { display: contents; }
+
+
+/* One-time onboarding panel for the first verified session. */
+.proxy-instruction {
+  margin: 0 0 1.5rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  color: #202b25;
+  background: linear-gradient(135deg, #f6f4ec 0%, #e9eee6 100%);
+  border: 1px solid #c7d2c5;
+  border-radius: 18px;
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.16);
+}
+.proxy-step-mark {
+  display: inline-block;
+  padding: 0.3rem 0.55rem;
+  margin-bottom: 1.1rem;
+  border: 1px solid #b9c6b8;
+  border-radius: 999px;
+  color: #52675a;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+.proxy-eyebrow {
+  color: #52715a;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+.proxy-instruction h3 {
+  color: #1d2b22;
+  font-family: 'Fraunces', serif;
+  font-size: clamp(1.45rem, 3vw, 2rem);
+  line-height: 1.15;
+  margin-bottom: 0.7rem;
+}
+.proxy-copy {
+  max-width: 44rem;
+  color: #526056;
+  line-height: 1.65;
+  margin-bottom: 1.2rem;
+}
+.proxy-open-link, .proxy-done-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 150ms ease, background 150ms ease, border-color 150ms ease;
+}
+.proxy-open-link {
+  background: #253d2d;
+  border: 1px solid #253d2d;
+  color: #fff;
+}
+.proxy-open-link:hover, .proxy-done-btn:hover { transform: translateY(-1px); }
+.proxy-open-link:hover { background: #365840; }
+.proxy-finish-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-top: 1.15rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid #d1d9ce;
+}
+.proxy-finish-note { color: #667367; font-size: 0.86rem; }
+.proxy-done-btn {
+  background: transparent;
+  color: #263a2c;
+  border: 1px solid #a9b8a8;
+  cursor: pointer;
+}
+.proxy-done-btn:disabled { opacity: 0.55; cursor: wait; }
+.proxy-instruction-error {
+  margin-top: 0.8rem;
+  color: #8f1d14;
+  font-size: 0.9rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .proxy-open-link, .proxy-done-btn { transition: none; }
+}
