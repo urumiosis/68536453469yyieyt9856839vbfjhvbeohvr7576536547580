@@ -123,8 +123,8 @@ function initSupabase() {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
       auth: {
         // Never persist a login between page loads or browser sessions.
-        persistSession: false,
-        autoRefreshToken: false,
+        persistSession: true,
+        autoRefreshToken: true,
         detectSessionInUrl: false
       }
     });
@@ -161,6 +161,8 @@ function setSiteUnlocked(unlocked) {
 function showLogin() {
   loginScreen.classList.add('active');
   dashboardScreen.classList.remove('active');
+  dashboardScreen.hidden = true;
+  dashboardScreen.setAttribute('aria-hidden', 'true');
   currentUser = null;
   currentProfile = null;
   setSiteUnlocked(false);
@@ -277,12 +279,16 @@ function verifyCertAgainstProfile(parsed) {
 }
 
 async function showDashboard(user) {
+  if (!user?.id) { showLogin(); return; }
   currentUser = user;
   loginScreen.classList.remove('active');
+  dashboardScreen.hidden = false;
+  dashboardScreen.setAttribute('aria-hidden', 'false');
   dashboardScreen.classList.add('active');
   userEmailEl.textContent = user.email || user.id;
   setSiteUnlocked(false);
   await loadProfile(user);
+  await loadSiteContent();
   setWelcome(displayNameFromUser(user, currentProfile));
   // Never restore a previous certificate verification.
   applyCertToUI(null);
