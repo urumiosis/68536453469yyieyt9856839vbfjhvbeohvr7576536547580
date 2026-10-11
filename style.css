@@ -493,3 +493,7 @@ body {
 
 /* Keep external game links styled like the existing Play buttons. */
 a.btn-play { display: inline-block; text-decoration: none; }
+
+/* Ensure the browser's hidden attribute wins over .screen.active. */
+[hidden] { display: none !important; }
+.game-cards { display: contents; }
