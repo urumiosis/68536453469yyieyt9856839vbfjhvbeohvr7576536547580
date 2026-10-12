@@ -74,6 +74,7 @@ async function dismissProxyInstruction() {
     if (error) throw error;
     proxyInstructionSeen = true;
     if (proxyInstruction) proxyInstruction.hidden = true;
+    setSiteUnlocked(true);
   } catch (err) {
     console.error('Could not save instruction status:', err);
     if (proxyInstructionError) {
@@ -204,9 +205,11 @@ async function checkSession() {
 
 function setSiteUnlocked(unlocked) {
   isVerified = !!unlocked;
+  const needsProxySetup = !!unlocked && !proxyInstructionSeen;
   if (lockedSite) lockedSite.hidden = !unlocked;
   if (certSection) certSection.hidden = !!unlocked;
   if (proxyInstruction) proxyInstruction.hidden = !unlocked || proxyInstructionSeen;
+  if (dashboardScreen) dashboardScreen.classList.toggle("proxy-gate", needsProxySetup);
 }
 
 function showLogin() {
