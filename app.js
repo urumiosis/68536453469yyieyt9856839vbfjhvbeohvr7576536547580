@@ -32,7 +32,8 @@ const warningBody = document.getElementById('warning-body');
 const proxyInstruction = document.getElementById('proxy-instruction');
 const proxyInstructionDone = document.getElementById('proxy-instruction-done');
 const proxyInstructionError = document.getElementById('proxy-instruction-error');
-let proxyInstructionSeen = true;
+const PROXY_INSTRUCTION_STORAGE_KEY = 'anti-markaryd:anyproxy-first-use';
+let proxyInstructionSeen = false;
 
 
 function setText(el, value) {
@@ -45,40 +46,29 @@ function makeElement(tag, className, text) {
   return el;
 }
 async function loadProxyInstructionStatus() {
-  if (!supabase || !currentUser?.id) return;
-  // Default to showing the step if its status cannot be read.
-  proxyInstructionSeen = false;
+  // Keep this preference in this browser only; no Supabase table is used.
   try {
-    const { data, error } = await supabase
-      .from('user_onboarding')
-      .select('instruction_key')
-      .eq('user_id', currentUser.id)
-      .eq('instruction_key', 'anyproxy-first-use')
-      .maybeSingle();
-    if (error) throw error;
-    proxyInstructionSeen = !!data;
+    proxyInstructionSeen = localStorage.getItem(PROXY_INSTRUCTION_STORAGE_KEY) === 'true';
   } catch (err) {
-    console.warn('Could not read one-time instruction status:', err);
+    // If storage is blocked/unavailable, show the instruction rather than skip the gate.
+    proxyInstructionSeen = false;
+    console.warn('Could not read local onboarding status:', err);
   }
 }
 
 async function dismissProxyInstruction() {
-  if (!supabase || !currentUser?.id || !proxyInstructionDone) return;
+  if (!proxyInstructionDone) return;
   proxyInstructionDone.disabled = true;
   if (proxyInstructionError) proxyInstructionError.hidden = true;
   try {
-    const { error } = await supabase.from('user_onboarding').upsert({
-      user_id: currentUser.id,
-      instruction_key: 'anyproxy-first-use'
-    }, { onConflict: 'user_id,instruction_key' });
-    if (error) throw error;
+    localStorage.setItem(PROXY_INSTRUCTION_STORAGE_KEY, 'true');
     proxyInstructionSeen = true;
     if (proxyInstruction) proxyInstruction.hidden = true;
     setSiteUnlocked(true);
   } catch (err) {
-    console.error('Could not save instruction status:', err);
+    console.error('Could not save instruction status locally:', err);
     if (proxyInstructionError) {
-      proxyInstructionError.textContent = 'Kunde inte spara ditt val. Kontrollera anslutningen och försök igen.';
+      proxyInstructionError.textContent = 'Kunde inte spara inställningen i webbläsaren. Kontrollera webbläsarens lagring och försök igen.';
       proxyInstructionError.hidden = false;
     }
   } finally {
