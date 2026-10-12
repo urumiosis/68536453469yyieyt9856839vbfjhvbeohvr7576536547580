@@ -587,3 +587,28 @@ a.btn-play { display: inline-block; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
   .proxy-open-link, .proxy-done-btn { transition: none; }
 }
+
+
+/* First-use setup is a blocking screen: no dashboard or games until acknowledged. */
+#dashboard-screen.proxy-gate .top-bar,
+#dashboard-screen.proxy-gate .hero-banner,
+#dashboard-screen.proxy-gate #cert-section,
+#dashboard-screen.proxy-gate #games-section,
+#dashboard-screen.proxy-gate #warning-box {
+  display: none !important;
+}
+#dashboard-screen.proxy-gate .dashboard {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 760px;
+  min-height: 100vh;
+  padding: clamp(1.25rem, 4vw, 3rem);
+}
+#dashboard-screen.proxy-gate #locked-site {
+  display: block;
+  width: 100%;
+}
+#dashboard-screen.proxy-gate .proxy-instruction {
+  margin: 0;
+}
