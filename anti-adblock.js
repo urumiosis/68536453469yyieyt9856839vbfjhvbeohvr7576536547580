@@ -18,7 +18,7 @@
     if (blocked) {
       const notice = document.createElement("div");
       notice.textContent =
-        "Please consider disabling your ad blocker to support this site.";
+        "Stäng av din adblock för att använda den här sidan.";
       notice.style.cssText =
         "position:fixed;bottom:20px;left:50%;transform:translateX(-50%);" +
         "background:#222;color:white;padding:16px 22px;border-radius:10px;" +
