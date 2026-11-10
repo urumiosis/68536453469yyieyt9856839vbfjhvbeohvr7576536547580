@@ -6,16 +6,28 @@
   <title>Anti Markaryd</title>
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
-  <!-- Pinned UMD build so window.supabase is always available -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-  <script>(function(s){s.dataset.zone='12081120',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+  <!-- App and third-party scripts are intentionally disabled in maintenance mode. -->
 </head>
 <body>
+  <!-- Maintenance mode: visual login preview only. No login scripts run on this branch. -->
+  <div id="maintenance-overlay" class="maintenance-overlay" role="status" aria-live="polite" aria-labelledby="maintenance-title" aria-describedby="maintenance-description">
+    <div class="maintenance-orbit maintenance-orbit-one" aria-hidden="true"></div>
+    <div class="maintenance-orbit maintenance-orbit-two" aria-hidden="true"></div>
+    <section class="maintenance-card">
+      <p class="maintenance-kicker"><span class="maintenance-indicator" aria-hidden="true"></span> ARBETE PÅGÅR</p>
+      <div class="maintenance-symbol" aria-hidden="true"><span>✳</span></div>
+      <h2 id="maintenance-title">Under ombyggnad<span class="maintenance-ellipsis" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></h2>
+      <p id="maintenance-description" class="maintenance-description">Webbplatsen är tillfälligt stängd medan vi arbetar med den. Inloggningen är avstängd tills vi öppnar igen.</p>
+      <div class="maintenance-loading" aria-hidden="true"><span></span></div>
+      <p class="maintenance-footer">Tack för ditt tålamod.</p>
+    </section>
+  </div>
+
   <div class="bg-grid"></div>
   <div class="scanlines"></div>
 
   <!-- LOGIN SCREEN -->
-  <div id="login-screen" class="screen active">
+  <div id="login-screen" class="screen active" inert aria-hidden="true">
     <div class="login-container">
       <div class="logo-glitch">
         <h1 data-text="ANTI MARKARYD">Anti Markaryd</h1>
@@ -24,13 +36,13 @@
       <form id="login-form" class="login-form">
         <div class="input-group">
           <label for="email">E-post</label>
-          <input type="email" id="email" name="email" placeholder="din@email.se" required autocomplete="username">
+          <input type="email" id="email" name="email" disabled placeholder="din@email.se" required autocomplete="username">
         </div>
         <div class="input-group">
           <label for="password">Lösenord</label>
-          <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
+          <input type="password" id="password" name="password" disabled placeholder="••••••••" required autocomplete="current-password">
         </div>
-        <button type="submit" class="btn-primary" id="login-btn">
+        <button type="submit" class="btn-primary" id="login-btn" disabled>
           <span>LOGGA IN</span>
         </button>
         <p id="login-error" class="error-msg" hidden></p>
@@ -44,7 +56,7 @@
   </div>
 
   <!-- DASHBOARD / GAMES SCREEN -->
-  <div id="dashboard-screen" class="screen" hidden aria-hidden="true">
+  <div id="dashboard-screen" class="screen" inert hidden aria-hidden="true">
     <header class="top-bar">
       <div class="brand">
         <span class="brand-icon">✕</span>
@@ -102,7 +114,7 @@
   </div>
 
   <!-- GAME MODAL -->
-  <div id="game-modal" class="modal" hidden>
+  <div id="game-modal" class="modal" inert hidden>
     <div class="modal-content">
       <div class="modal-header">
         <h3 id="game-title">Spel</h3>
@@ -114,9 +126,7 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
-  
-  <script src="/anti-adblock.js"></script>
+  <!-- No application JavaScript: authentication cannot run on this branch. -->
 
 </body>
 </html>
