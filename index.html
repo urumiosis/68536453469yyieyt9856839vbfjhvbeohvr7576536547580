@@ -66,12 +66,17 @@
         <div class="cert-alert-icon" aria-hidden="true"><span>!</span></div>
         <p class="cert-eyebrow">SÄKERHETSKONTROLL</p>
         <h2 id="cert-heading" class="cert-heading">CERTIFIKATVERIFIERING KRÄVS</h2>
-        <p class="cert-hint">VARNING: Identiteten måste verifieras innan du får åtkomst. Ladda upp ditt certifikat för att fortsätta.</p>
+        <p class="cert-hint">Ladda upp det signerade certifikatet för den här webbläsaren.</p>
         <label class="cert-upload">
           <input type="file" id="cert-file" accept=".certificate">
           <span class="btn-play" id="cert-upload-label">Ladda upp</span>
         </label>
-        <p id="cert-status" class="cert-status" hidden></p>
+        <div class="cert-device">
+          <button type="button" class="btn-ghost" id="copy-device-id">Kopiera enhets-ID</button>
+          <input id="device-id" type="text" aria-label="Enhets-ID" readonly hidden>
+          <p id="device-id-status" role="status" hidden></p>
+        </div>
+        <p id="cert-status" class="cert-status" role="status" hidden></p>
       </section>
 
 <div id="locked-site" hidden>
@@ -114,7 +119,7 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=am2"></script>
   
   <script src="/anti-adblock.js"></script>
 
