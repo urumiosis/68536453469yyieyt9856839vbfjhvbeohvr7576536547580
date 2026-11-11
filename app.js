@@ -5,6 +5,8 @@
   const SUPABASE_URL = 'https://eqwlikflvpyghkvhsxmz.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_eGjEo-jwcsyFEJLCyfoPJw_mtXXO9Rp';
   const MAX_CERTIFICATE_BYTES = 4096;
+  const DEVICE_KEY_ALGORITHM = { name: 'ECDSA', namedCurve: 'P-256' };
+  const DEVICE_SIGN_ALGORITHM = { name: 'ECDSA', hash: 'SHA-256' };
 
   const loginScreen = document.getElementById('login-screen');
   const dashboardScreen = document.getElementById('dashboard-screen');
@@ -15,6 +17,9 @@
   const logoutBtn = document.getElementById('logout-btn');
   const certFileInput = document.getElementById('cert-file');
   const certStatus = document.getElementById('cert-status');
+  const copyDeviceIdBtn = document.getElementById('copy-device-id');
+  const deviceIdInput = document.getElementById('device-id');
+  const deviceIdStatus = document.getElementById('device-id-status');
   const lockedSite = document.getElementById('locked-site');
 
   let supabase = null;
@@ -55,6 +60,10 @@
     dashboardScreen.classList.add('active');
     certFileInput.disabled = false;
     certStatus.hidden = true;
+    copyDeviceIdBtn.disabled = false;
+    deviceIdInput.hidden = true;
+    deviceIdInput.value = '';
+    deviceIdStatus.hidden = true;
   }
 
   function expireAppAt(deadline) {
@@ -65,6 +74,105 @@
       return;
     }
     window.setTimeout(() => expireAppAt(deadline), Math.min(remaining, 2_147_483_647));
+  }
+
+  function encodeBase64Url(bytes) {
+    return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function openDeviceStorage() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('anti-markaryd-device', 1);
+      request.onupgradeneeded = () => request.result.createObjectStore('keys');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  function getDeviceKey(db, userId, candidate) {
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction('keys', candidate ? 'readwrite' : 'readonly');
+      const store = transaction.objectStore('keys');
+      const request = store.get(userId);
+      let key;
+      request.onsuccess = () => {
+        key = request.result ?? candidate;
+        if (!request.result && candidate) store.add(candidate, userId);
+      };
+      transaction.oncomplete = () => resolve(key);
+      transaction.onabort = () => reject(transaction.error);
+    });
+  }
+
+  async function loadDevice(userId) {
+    try {
+      const db = await openDeviceStorage();
+      let key;
+      try {
+        key = await getDeviceKey(db, userId);
+        if (!key) {
+          const candidate = await crypto.subtle.generateKey(DEVICE_KEY_ALGORITHM, false, ['sign', 'verify']);
+          key = await getDeviceKey(db, userId, candidate);
+        }
+      } finally {
+        db.close();
+      }
+      const publicKey = new Uint8Array(await crypto.subtle.exportKey('raw', key.publicKey));
+      const fingerprint = await crypto.subtle.digest('SHA-256', publicKey);
+      return { privateKey: key.privateKey, publicKey: encodeBase64Url(publicKey), id: encodeBase64Url(new Uint8Array(fingerprint)) };
+    } catch {
+      throw new Error('Enhetsnyckeln kunde inte sparas eller läsas. Använd din vanliga Chrome-profil.');
+    }
+  }
+
+  async function copyDeviceId() {
+    if (!activeUserId) return;
+    const generation = loginGeneration;
+    copyDeviceIdBtn.disabled = true;
+    try {
+      const device = await loadDevice(activeUserId);
+      if (loginGeneration !== generation) return;
+      deviceIdInput.value = device.id;
+      deviceIdInput.hidden = false;
+      try {
+        await navigator.clipboard.writeText(device.id);
+        deviceIdStatus.textContent = 'Enhets-ID kopierat. Skicka det till webbplatsens ägare.';
+      } catch {
+        deviceIdInput.focus();
+        deviceIdInput.select();
+        deviceIdStatus.textContent = 'Kopiera enhets-ID:t och skicka det till webbplatsens ägare.';
+      }
+    } catch (error) {
+      if (loginGeneration !== generation) return;
+      deviceIdStatus.textContent = error.message;
+    } finally {
+      if (loginGeneration === generation) {
+        deviceIdStatus.hidden = false;
+        copyDeviceIdBtn.disabled = false;
+      }
+    }
+  }
+
+  async function requestLicenseVerification(session, body) {
+    const response = await fetch(SUPABASE_URL + '/functions/v1/verify-license', {
+      method: 'POST',
+      cache: 'no-store',
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: 'Bearer ' + session.access_token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    if (response.status === 401) throw new Error('Logga in igen.');
+    if (response.status === 403) throw new Error('Certifikatet är ogiltigt eller har gått ut.');
+    if (response.status === 409) {
+      const { code } = await response.json();
+      if (code === 'device_mismatch') throw new Error('Certifikatet gäller en annan enhet eller Chrome-profil.');
+      throw new Error('Enheten kunde inte verifieras. Ladda upp certifikatet igen.');
+    }
+    if (!response.ok) throw new Error('Certifikatet kunde inte verifieras just nu. Försök igen.');
+    return response;
   }
 
   async function verifyUploadedCertificate() {
@@ -82,21 +190,20 @@
       const { data, error } = await supabase.auth.getSession();
       const session = data?.session;
       if (error || session?.user?.id !== userId) throw new Error('Logga in igen.');
-      const certificate = await file.text();
+      const certificate = (await file.text()).trim();
+      const device = await loadDevice(userId);
       if (loginGeneration !== generation) return;
-      const response = await fetch(SUPABASE_URL + '/functions/v1/verify-license', {
-        method: 'POST',
-        cache: 'no-store',
-        headers: {
-          apikey: SUPABASE_KEY,
-          Authorization: 'Bearer ' + session.access_token,
-          'Content-Type': 'text/plain;charset=UTF-8'
-        },
-        body: certificate
+      const start = await requestLicenseVerification(session, { action: 'start', certificate, deviceKey: device.publicKey });
+      const { challenge } = await start.json();
+      if (typeof challenge !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(challenge)) {
+        throw new Error('Enheten kunde inte verifieras. Försök igen.');
+      }
+      const proof = new TextEncoder().encode(`anti-markaryd-device-v1\n${userId}\n${challenge}\n${certificate}`);
+      const signature = new Uint8Array(await crypto.subtle.sign(DEVICE_SIGN_ALGORITHM, device.privateKey, proof));
+      if (loginGeneration !== generation) return;
+      const response = await requestLicenseVerification(session, {
+        action: 'finish', certificate, deviceKey: device.publicKey, challenge, signature: encodeBase64Url(signature)
       });
-      if (response.status === 401) throw new Error('Logga in igen.');
-      if (response.status === 403) throw new Error('Certifikatet är ogiltigt eller har gått ut.');
-      if (!response.ok) throw new Error('Certifikatet kunde inte verifieras just nu. Försök igen.');
       const receivedAt = performance.now();
       const app = await response.json();
       if (loginGeneration !== generation) return;
@@ -200,6 +307,7 @@
       });
     }
 
+    copyDeviceIdBtn.addEventListener('click', copyDeviceId);
     certFileInput.addEventListener('change', verifyUploadedCertificate);
 
     supabase.auth.onAuthStateChange((event, session) => {

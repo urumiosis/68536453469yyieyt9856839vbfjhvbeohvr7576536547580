@@ -1,30 +1,53 @@
-# Owner-signed certificates
+# Owner-signed certificates for one device
 
-The site requires both a Supabase login and a `.certificate` issued for that account. The Edge Function verifies the owner's ECDSA P-256 signature, the site audience, the authenticated user's UUID, and the expiry before returning the private JavaScript and game catalog. Existing unsigned certificates must be reissued. The browser asks for a certificate again after a reload or sign-out.
+Each certificate includes the recipient's Supabase account UUID, browser device ID, and expiration date. Supabase checks your signature and asks the browser to prove it holds the private key for that device ID. The server allows one active device ID per account.
 
-## Generate your signing key and issue certificates
+The device ID belongs to one Chrome profile on one site origin. Use the same regular Chrome profile and site address every time. Guest mode, Incognito, a different profile, and cleared site data can lose or change the device ID. This uses a browser key and does not read a Chromebook serial number or attest its hardware.
 
-Use Node.js 20 or later on your own machine. Run these commands from a checkout of this branch.
+## Set up once
+
+Use Node.js 20 or later on your own machine and run this command from a checkout of this branch.
 
 ```sh
 node scripts/license.mjs keygen "$HOME/anti-markaryd-signing-key.pk8"
-node scripts/license.mjs issue "$HOME/anti-markaryd-signing-key.pk8" \
-  12345678-1234-4234-8234-123456789abc 2027-12-31T23:59:59Z member.certificate
 ```
 
-The first command prints the public key. Keep the private key file outside the repo and keep a secure backup. Use the recipient's actual **User UID** from Supabase **Authentication → Users** and choose a UTC expiry. Send the resulting file to that account holder. Generating a new signing key and changing the configured public key invalidates all certificates issued with the previous key on subsequent verification requests.
+The command prints the **public key**. Keep the private key file outside the repo and make a secure backup. The same key signs each certificate.
 
-## Deploy
-
-1. In your Supabase project's Edge Function secrets, set `LICENSE_PUBLIC_KEY` to the public key printed by `keygen`. The function uses the project's injected `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`. If you host the site at another origin, set `LICENSE_ALLOWED_ORIGINS` to a comma-separated list of exact origins.
-2. From the branch checkout, deploy the function with the Supabase CLI. Replace `YOUR_PROJECT_REF` with your existing project's ref. The handler checks the bearer token against Supabase Auth before accessing any protected rows.
+1. In **Supabase → Edge Functions → Secrets**, set `LICENSE_PUBLIC_KEY` to the printed public key. The function also uses the project's injected `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`. For a different site address, set `LICENSE_ALLOWED_ORIGINS` to a comma-separated list of exact origins.
+2. Deploy the function from the branch checkout. Substitute your existing Supabase project ref. The function verifies the bearer token with Supabase Auth itself.
 
    ```sh
    supabase functions deploy verify-license --project-ref YOUR_PROJECT_REF --no-verify-jwt
    ```
 
-3. Back up the current `public.private_app_code` row with ID 1. In the Supabase SQL Editor, run the private `install-signed-license.sql` delivered with this change. It replaces that row's JavaScript and applies the access policies in one transaction. It aborts if the row differs from the supplied export so that newer edits can be integrated first. The public migration in this repo contains the same policy changes for tracking and can be applied again safely.
-4. Merge the pull request into `main` and wait for GitHub Pages to deploy. Plan a brief interruption between the SQL change and the Pages deployment. Keep a signed certificate for a test account available before starting.
-5. Sign in and confirm a valid file opens the dashboard. Try an unsigned file and a file for a different account, and confirm they leave the dashboard locked. As a regular authenticated user, direct database reads of the private app and catalog should return no rows.
+3. Back up `public.private_app_code` row 1. In the **Supabase SQL Editor**, run the updated private `install-signed-license.sql` delivered with this change. It installs the new private app row, access policies, and device verification tables and functions in one transaction. If row 1 differs from the supplied export and the replacement, the installer aborts so newer edits can be integrated first.
+4. Merge the pull request into `main` and wait for GitHub Pages. Plan a brief interruption between applying the SQL and the Pages deployment. Earlier certificates without a signed device ID must be reissued.
 
-The existing admin permissions for editing site copy and the game catalog still apply. License expiry prevents subsequent server responses and returns the site to the upload screen. Users can retain code or links already delivered to their browser. Scripts already running on the site, including its ad scripts, share the browser page with the upload and the unlocked content.
+## Issue and use a certificate
+
+1. Have the recipient sign in at **https://anti-markaryd.com** on the Chromebook and Chrome profile they intend to use. They click **Kopiera enhets-ID** and send you the copied value. The ID is also displayed for manual copying.
+2. In **Supabase → Authentication → Users**, copy that user's **User UID**. Replace `USER_UUID` and `DEVICE_ID` below and choose an expiration date and time in UTC.
+
+   ```sh
+   node scripts/license.mjs issue "$HOME/anti-markaryd-signing-key.pk8" \
+     USER_UUID DEVICE_ID 2027-12-31T23:59:59Z member.certificate
+   ```
+
+3. Give the resulting `member.certificate` file to the recipient. They click **Ladda upp** and select the file on the same Chrome profile. After reloading the page or signing in again, they upload the same file until it expires. A renewal on the same profile uses the same device ID.
+
+## Replace a device or recover after clearing site data
+
+Get the new device ID and issue a certificate for it. Before handing over the new file, pin that account to the new ID in the SQL Editor. Replace both quoted placeholders.
+
+```sql
+insert into public.license_devices (user_id, device_id, activated_at)
+values ('USER_UUID', 'NEW_DEVICE_ID', now())
+on conflict (user_id) do update
+set device_id = excluded.device_id,
+    activated_at = excluded.activated_at,
+    challenge = null,
+    challenge_expires_at = null;
+```
+
+This clears any pending verification and blocks the old device on its next request. Code and links already downloaded can still be retained. Rotating the owner's signing key invalidates all previously issued files on their next verification. Existing scripts on the website share the browser page with the upload and unlocked content.

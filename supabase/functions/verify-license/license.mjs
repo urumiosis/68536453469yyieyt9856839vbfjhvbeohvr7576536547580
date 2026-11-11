@@ -1,6 +1,7 @@
-export const VERSION = 'am1';
+export const VERSION = 'am2';
 export const AUDIENCE = 'anti-markaryd.com';
 export const MAX_LICENSE_LENGTH = 4096;
+export const DEVICE_ID = /^[A-Za-z0-9_-]{43}$/;
 export const ACCOUNT_ID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/;
 export const KEY_ALGORITHM = { name: 'ECDSA', namedCurve: 'P-256' };
 export const SIGN_ALGORITHM = { name: 'ECDSA', hash: 'SHA-256' };
@@ -31,6 +32,7 @@ export async function verifyLicense(token, publicKey, userId, now = Math.floor(D
     if (!valid) return null;
     const claims = JSON.parse(decoder.decode(decodeBase64Url(payload)));
     if (!claims || claims.aud !== AUDIENCE || claims.sub !== userId ||
+        typeof claims.device !== 'string' || !DEVICE_ID.test(claims.device) ||
         !Number.isSafeInteger(claims.iat) || !Number.isSafeInteger(claims.exp) ||
         claims.iat > now || claims.exp <= now || claims.exp <= claims.iat) return null;
     return claims;
