@@ -24,11 +24,18 @@
   const deviceIdInput = document.getElementById('device-id');
   const deviceIdStatus = document.getElementById('device-id-status');
   const lockedSite = document.getElementById('locked-site');
+  const autoCertificate = document.getElementById('auto-certificate');
+  const autoCertificateStatus = document.getElementById('auto-certificate-status');
+  const retryCertificate = document.getElementById('retry-certificate');
+  const downloadCertificate = document.getElementById('download-certificate');
+  const readCertificate = document.getElementById('read-certificate');
+  const certificateText = document.getElementById('certificate-text');
 
   let supabase = null;
   let activeUserId = null;
   let loginGeneration = 0;
   let privateAppStarted = false;
+  let certificateDownloadUrl = null;
 
   function showLogin() {
     if (loginScreen) loginScreen.classList.add('active');
@@ -67,6 +74,16 @@
     deviceIdInput.hidden = true;
     deviceIdInput.value = '';
     deviceIdStatus.hidden = true;
+    if (autoCertificate) {
+      autoCertificate.hidden = false;
+      autoCertificateStatus.textContent = 'Skapar ditt personliga certifikat…';
+      retryCertificate.hidden = true;
+      downloadCertificate.hidden = true;
+      readCertificate.hidden = true;
+      if (certificateDownloadUrl) URL.revokeObjectURL(certificateDownloadUrl);
+      certificateDownloadUrl = null;
+      void issueStudentCertificate(user.id, loginGeneration);
+    }
   }
 
   function expireAppAt(deadline) {
@@ -153,6 +170,75 @@
         deviceIdStatus.hidden = false;
         copyDeviceIdBtn.disabled = false;
       }
+    }
+  }
+
+  async function requestCertificateIssuance(session, body) {
+    const response = await fetch(SUPABASE_URL + '/functions/v1/issue-license', {
+      method: 'POST',
+      cache: 'no-store',
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: 'Bearer ' + session.access_token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    if (response.status === 401) throw new Error('Logga in igen.');
+    if (response.status === 403) throw new Error('Ditt studentkonto måste vara godkänt och skolmejlen verifierad.');
+    if (response.status === 409) throw new Error('Kontot är redan kopplat till en annan Chrome-profil. Kontakta administratören.');
+    if (!response.ok) throw new Error('Certifikattjänsten är inte klar eller är tillfälligt otillgänglig.');
+    return response.json();
+  }
+
+  async function issueStudentCertificate(userId, generation) {
+    if (!autoCertificateStatus || !activeUserId || privateAppStarted) return;
+    autoCertificateStatus.textContent = 'Skapar ditt personliga certifikat…';
+    retryCertificate.hidden = true;
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      const session = data?.session;
+      if (error || !session || session.user.id !== userId) throw new Error('Logga in igen.');
+      const device = await loadDevice(userId);
+      if (generation !== loginGeneration) return;
+
+      const { challenge } = await requestCertificateIssuance(session, {
+        action: 'start', deviceKey: device.publicKey
+      });
+      if (typeof challenge !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(challenge)) {
+        throw new Error('Enhetsverifieringen misslyckades.');
+      }
+      const proofText = ['anti-markaryd-enrollment-v1', userId, challenge, device.publicKey].join('\n');
+      const signedProof = new Uint8Array(await crypto.subtle.sign(
+        DEVICE_SIGN_ALGORITHM, device.privateKey, new TextEncoder().encode(proofText)
+      ));
+      if (generation !== loginGeneration) return;
+
+      const { certificate } = await requestCertificateIssuance(session, {
+        action: 'finish', deviceKey: device.publicKey,
+        challenge, signature: encodeBase64Url(signedProof)
+      });
+      if (generation !== loginGeneration) return;
+      if (typeof certificate !== 'string' || new TextEncoder().encode(certificate).length > MAX_CERTIFICATE_BYTES) {
+        throw new Error('Certifikattjänsten svarade med ett ogiltigt format.');
+      }
+      const parsed = JSON.parse(certificate);
+      if (parsed.format !== 'am3' || !parsed.claims?.license || !parsed.signature ||
+          parsed.claims.sub !== userId || parsed.claims.device !== device.id) {
+        throw new Error('Certifikatet innehåller inte rätt uppgifter.');
+      }
+      certificateDownloadUrl = URL.createObjectURL(new Blob([certificate], {
+        type: 'text/plain;charset=utf-8'
+      }));
+      downloadCertificate.href = certificateDownloadUrl;
+      downloadCertificate.hidden = false;
+      certificateText.textContent = certificate;
+      readCertificate.hidden = false;
+      autoCertificateStatus.textContent = 'Certifikatet är klart. Ladda ned det och ladda upp filen ovan för att fortsätta.';
+    } catch (error) {
+      if (generation !== loginGeneration) return;
+      autoCertificateStatus.textContent = error.message || 'Certifikatet kunde inte skapas.';
+      retryCertificate.hidden = false;
     }
   }
 
@@ -356,6 +442,12 @@
         } finally {
           window.location.reload();
         }
+      });
+    }
+
+    if (retryCertificate) {
+      retryCertificate.addEventListener('click', () => {
+        if (activeUserId) void issueStudentCertificate(activeUserId, loginGeneration);
       });
     }
 
