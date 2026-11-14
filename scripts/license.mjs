@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import {
   ACCOUNT_ID, AUDIENCE, DEVICE_ID, encodeBase64Url, KEY_ALGORITHM, SIGN_ALGORITHM,
   MAX_LICENSE_LENGTH, MAX_LICENSE_TEXT_BYTES, VERSION
-} from '../supabase/functions/verify-license/license.mjs';
+} from '../supabase/functions/_shared/license.mjs';
 
 const { subtle } = webcrypto;
 
