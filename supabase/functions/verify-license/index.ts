@@ -1,5 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
-import { decodeBase64Url, encodeBase64Url, KEY_ALGORITHM, MAX_LICENSE_LENGTH, SIGN_ALGORITHM, verifyLicense } from './license.mjs';
+import { decodeBase64Url, encodeBase64Url, KEY_ALGORITHM, MAX_LICENSE_LENGTH, SIGN_ALGORITHM, verifyLicense } from '../_shared/license.mjs';
 
 const origins = new Set((Deno.env.get('LICENSE_ALLOWED_ORIGINS') ??
   'https://anti-markaryd.com,https://urumiosis.github.io').split(',').map(origin => origin.trim()));
