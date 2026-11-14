@@ -1,26 +1,49 @@
--- IMPORTANT: This project already has its student enrollment tables and Auth Hook.
--- This migration adds the service-role-only eligibility RPC used by certificate
--- issuance and verification. It does NOT create duplicate signup tables or hooks.
---
--- Existing objects in the Anti Markaryd Supabase project:
---   public.student_signup_config (id, email_domain, enabled)
---   public.student_approved_emails (email, active, approved_at)
---   public.hook_restrict_student_signup(event jsonb)
---
--- Run only after checking that these three objects exist.
--- Registration remains fail-closed until the domain, roster, and hook are set up.
+-- Accept every e0000..e9999@edu.markaryd.se address, after confirmation.
+-- Existing student_signup_config remains the on/off switch.
+-- Existing approved-email table is preserved but NOT consulted for registration.
+-- This replaces the already-installed hook: do not create a duplicate hook.
 begin;
 
 do $$
 begin
   if to_regclass('public.student_signup_config') is null
-    or to_regclass('public.student_approved_emails') is null
-    or to_regprocedure('public.hook_restrict_student_signup(jsonb)') is null then
-    raise exception 'Missing existing student signup tables or Auth Hook; stop before deployment';
+     or to_regprocedure('public.hook_restrict_student_signup(jsonb)') is null then
+    raise exception 'Missing existing student signup config or hook';
   end if;
-end
-$$;
+end $$;
 
+create or replace function public.hook_restrict_student_signup(event jsonb)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  address text := lower(btrim(coalesce(event->'user'->>'email', '')));
+  allowed boolean;
+begin
+  select exists(
+    select 1 from public.student_signup_config c
+    where c.id = 1
+      and c.enabled
+      and c.email_domain = 'edu.markaryd.se'
+      and address ~ '^e[0-9]{4}@edu[.]markaryd[.]se$'
+  ) into allowed;
+
+  if allowed and coalesce(event->'user'->>'is_anonymous', 'false') <> 'true' then
+    return '{}'::jsonb;
+  end if;
+
+  return jsonb_build_object('error',
+    jsonb_build_object('http_code', 403, 'message',
+      'Registration requires a confirmed school email in the e0000–e9999 range.'));
+end;
+$$;
+revoke all on function public.hook_restrict_student_signup(jsonb) from public, anon, authenticated;
+grant execute on function public.hook_restrict_student_signup(jsonb) to supabase_auth_admin;
+
+-- Server-side certificate functions also use this rule. They separately
+-- require authenticated accounts with confirmed school email addresses.
 create or replace function public.student_email_allowed(p_email text)
 returns boolean
 language sql
@@ -28,34 +51,22 @@ stable
 security invoker
 set search_path = ''
 as $$
-  select exists (
-    select 1
-      from public.student_signup_config c
-      join public.student_approved_emails s
-        on s.email = lower(p_email) and s.active
-     where c.id = 1
-       and c.enabled
-       and c.email_domain = 'edu.markaryd.se'
-       and split_part(lower(p_email), '@', 2) = c.email_domain
-       and split_part(lower(p_email), '@', 1) ~ '^e[0-9]{4}$'
+  select exists(
+    select 1 from public.student_signup_config c
+    where c.id = 1
+      and c.enabled
+      and c.email_domain = 'edu.markaryd.se'
+      and lower(btrim(p_email)) ~ '^e[0-9]{4}@edu[.]markaryd[.]se$'
   );
 $$;
-
 revoke all on function public.student_email_allowed(text) from public, anon, authenticated;
 grant execute on function public.student_email_allowed(text) to service_role;
 
 commit;
 
--- To configure the current school domain *without* permitting enrollment:
--- update public.student_signup_config
--- set email_domain = 'edu.markaryd.se', enabled = false
--- where id = 1;
---
--- Insert authorized actual students into public.student_approved_emails,
--- then enable registration in the database:
+-- Do not turn on sign-up until email confirmation, certificate functions,
+-- and protected-content policies have been configured and tested.
+-- To open sign-up later:
 -- update public.student_signup_config
 -- set email_domain = 'edu.markaryd.se', enabled = true
 -- where id = 1;
---
--- ALSO enable the EXISTING public.hook_restrict_student_signup function in
--- Authentication -> Hooks -> Before User Created. Never select a duplicate hook.
