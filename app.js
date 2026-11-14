@@ -231,7 +231,25 @@
     }
   }
 
+  // UI compatibility gate, not a hardware attestation. Browser platform strings can be spoofed.
+  function isChromeOSBrowser() {
+    const platform = navigator.userAgentData?.platform;
+    if (typeof platform === 'string' && platform) {
+      return platform === 'Chrome OS' || platform === 'ChromeOS';
+    }
+    return /\bCrOS\b/.test(navigator.userAgent || '');
+  }
+
   function init() {
+    if (!isChromeOSBrowser()) {
+      const blockedScreen = document.getElementById('chromebook-only-screen');
+      loginScreen.classList.remove('active');
+      if (blockedScreen) {
+        blockedScreen.hidden = false;
+        blockedScreen.classList.add('active');
+      }
+      return;
+    }
     if (!window.supabase?.createClient) {
       showLoginError(
         'Kunde inte ladda Supabase. Kontrollera nätverket och CDN.'
