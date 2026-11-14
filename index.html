@@ -14,6 +14,17 @@
   <div class="bg-grid"></div>
   <div class="scanlines"></div>
 
+  <!-- ChromeOS-only compatibility gate; the user-agent check is not hardware verification. -->
+  <div id="chromebook-only-screen" class="screen" hidden>
+    <div class="login-container">
+      <div class="logo-glitch"><h1>Chromebook krävs</h1></div>
+      <div class="login-form">
+        <p>Den här webbplatsen är endast tillgänglig via Chrome på en Chromebook med ChromeOS.</p>
+        <p class="tagline">Öppna sidan i din vanliga Chrome-profil på Chromebook för att fortsätta.</p>
+      </div>
+    </div>
+  </div>
+
   <!-- LOGIN SCREEN -->
   <div id="login-screen" class="screen active">
     <div class="login-container">
@@ -119,7 +130,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=am2"></script>
+  <script src="app.js?v=am3"></script>
   
   <script src="/anti-adblock.js"></script>
 
