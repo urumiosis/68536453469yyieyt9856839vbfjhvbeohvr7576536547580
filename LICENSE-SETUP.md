@@ -4,6 +4,12 @@ Each `.certificate` file is readable UTF-8 JSON with the recipient's Supabase ac
 
 The device ID belongs to one Chrome profile on one site origin. Use the same regular Chrome profile and site address every time. Guest mode, Incognito, a different profile, and cleared site data can lose or change the device ID. This uses a browser key and does not read a Chromebook serial number or attest its hardware. The site's ChromeOS-only check uses browser platform information and **can be spoofed**; it is a usability restriction, not security-grade Chromebook enforcement. Genuine ChromeOS hardware verification requires a separately provisioned managed ChromeOS Verified Access / extension setup. An IP address is not used as a device ID.
 
+## Student self-registration and automatic certificate download
+
+See [STUDENT-SUPABASE-SETUP.md](STUDENT-SUPABASE-SETUP.md) for the exact Supabase signup hook, approved-email roster, certificate issuing function, signing-key secrets, database rollout, and testing. The live project currently has registration disabled and its certificate functions are not deployed.
+
+Approved students can register and confirm their school email, then select **Skapa och ladda ner certifikat**. This downloads a signed, human-readable UTF-8 JSON file, provides a **Visa certifikat och licens** preview in the site, and verifies it against their local browser key. The private license signing key stays on the server. The manual owner issuance instructions below remain available.
+
 ## Set up once
 
 Use Node.js 20 or later on your own machine and run this command from a checkout of this branch.
