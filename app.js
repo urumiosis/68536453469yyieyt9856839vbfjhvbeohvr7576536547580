@@ -11,6 +11,9 @@
   const loginScreen = document.getElementById('login-screen');
   const dashboardScreen = document.getElementById('dashboard-screen');
   const loginForm = document.getElementById('login-form');
+  const signupForm = document.getElementById('signup-form');
+  const signupBtn = document.getElementById('signup-btn');
+  const signupFeedback = document.getElementById('signup-feedback');
   const loginBtn = document.getElementById('login-btn');
   const loginError = document.getElementById('login-error');
   const userEmailEl = document.getElementById('user-email');
@@ -268,6 +271,37 @@
         }
       }
     );
+
+    if (signupForm) {
+      signupForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        signupFeedback.hidden = false;
+        signupFeedback.textContent = 'Registrerar…';
+        signupFeedback.className = 'cert-status';
+        signupBtn.disabled = true;
+        const email = document.getElementById('signup-email').value.trim().toLowerCase();
+        const password = document.getElementById('signup-password').value;
+        try {
+          // UX check only: Supabase's Before User Created hook enforces the exact domain and roster.
+          if (!/^e[0-9]{4}@[a-z0-9.-]+$/i.test(email)) {
+            throw new Error('Använd din studentadress (E följt av fyra siffror).');
+          }
+          if (password.length < 12) throw new Error('Lösenordet måste ha minst 12 tecken.');
+          const { error } = await supabase.auth.signUp({
+            email, password,
+            options: { emailRedirectTo: window.location.origin + '/' }
+          });
+          if (error) throw error;
+          signupFeedback.className = 'cert-status ok';
+          signupFeedback.textContent = 'Om adressen är godkänd får du ett verifieringsmejl. Öppna länken innan du loggar in.';
+        } catch (error) {
+          signupFeedback.className = 'cert-status bad';
+          signupFeedback.textContent = error.message || 'Registreringen kunde inte slutföras.';
+        } finally {
+          signupBtn.disabled = false;
+        }
+      });
+    }
 
     if (loginForm) {
       loginForm.addEventListener('submit', async (event) => {
