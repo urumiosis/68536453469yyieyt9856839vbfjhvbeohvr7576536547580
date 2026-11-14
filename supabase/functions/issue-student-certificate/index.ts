@@ -6,6 +6,8 @@ const url = Deno.env.get('SUPABASE_URL') ?? '';
 const authKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const signingKey = Deno.env.get('LICENSE_SIGNING_PRIVATE_KEY') ?? '';
+const licenseText = Deno.env.get('LICENSE_STUDENT_TERMS') ??
+  'Personal, non-transferable student access for the approved account and registered ChromeOS browser profile.';
 const allowedOrigins = new Set((Deno.env.get('LICENSE_ALLOWED_ORIGINS') ??
   'https://anti-markaryd.com,https://urumiosis.github.io').split(',').map(x => x.trim()));
 const options = { auth: { persistSession: false, autoRefreshToken: false } };
@@ -67,7 +69,8 @@ Deno.serve(async request => {
       'pkcs8', decodeBase64Url(signingKey.trim()), KEY_ALGORITHM, false, ['sign']
     );
     const now = Math.floor(Date.now() / 1000);
-    const license = 'Personal, non-transferable student access for the approved account and registered ChromeOS browser profile.';
+    const license = licenseText.trim();
+    if (!license || encoder.encode(license).byteLength > 2048) throw new Error('Invalid license terms');
     const claims = { aud: AUDIENCE, sub: user.id, device, iat: now, exp: now + 30 * 24 * 3600, license };
     const signed = VERSION + '.' + encodeBase64Url(encoder.encode(JSON.stringify(claims)));
     const signature = encodeBase64Url(new Uint8Array(
