@@ -440,8 +440,8 @@
         const password = document.getElementById('signup-password').value;
         try {
           // UX check only: Supabase's Before User Created hook enforces the exact domain and roster.
-          if (!/^e[0-9]{4}@[a-z0-9.-]+$/i.test(email)) {
-            throw new Error('Använd din studentadress (E följt av fyra siffror).');
+          if (!/^e[0-9]{4}@edu\.markaryd\.se$/i.test(email)) {
+            throw new Error('Använd din skolmejl: E + fyra siffror @edu.markaryd.se.');
           }
           if (password.length < 12) throw new Error('Lösenordet måste ha minst 12 tecken.');
           const { error } = await supabase.auth.signUp({
