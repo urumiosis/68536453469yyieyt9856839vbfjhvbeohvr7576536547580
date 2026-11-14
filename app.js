@@ -21,6 +21,7 @@
   const certFileInput = document.getElementById('cert-file');
   const certStatus = document.getElementById('cert-status');
   const copyDeviceIdBtn = document.getElementById('copy-device-id');
+  const autoCertificateBtn = document.getElementById('auto-certificate');
   const deviceIdInput = document.getElementById('device-id');
   const deviceIdStatus = document.getElementById('device-id-status');
   const lockedSite = document.getElementById('locked-site');
@@ -71,6 +72,7 @@
     certFileInput.disabled = false;
     certStatus.hidden = true;
     copyDeviceIdBtn.disabled = false;
+    autoCertificateBtn.disabled = false;
     deviceIdInput.hidden = true;
     deviceIdInput.value = '';
     deviceIdStatus.hidden = true;
@@ -264,9 +266,9 @@
     return response;
   }
 
-  async function verifyUploadedCertificate() {
-    const file = certFileInput.files?.[0];
-    if (!file || !activeUserId || privateAppStarted) return;
+  async function verifyUploadedCertificate(certificateOverride = null) {
+    const file = typeof certificateOverride === 'string' ? null : certFileInput.files?.[0];
+    if ((!file && typeof certificateOverride !== 'string') || !activeUserId || privateAppStarted) return;
     const userId = activeUserId;
     const generation = loginGeneration;
     certFileInput.disabled = true;
@@ -275,11 +277,14 @@
     certStatus.textContent = 'Verifierar certifikatet…';
 
     try {
-      if (file.size > MAX_CERTIFICATE_BYTES) throw new Error('Ogiltigt certifikat.');
+      if (file && file.size > MAX_CERTIFICATE_BYTES) throw new Error('Ogiltigt certifikat.');
       const { data, error } = await supabase.auth.getSession();
       const session = data?.session;
       if (error || session?.user?.id !== userId) throw new Error('Logga in igen.');
-      const certificate = (await file.text()).trim();
+      const certificate = (certificateOverride ?? await file.text()).trim();
+      if (new TextEncoder().encode(certificate).byteLength > MAX_CERTIFICATE_BYTES) {
+        throw new Error('Ogiltigt certifikat.');
+      }
       const device = await loadDevice(userId);
       if (loginGeneration !== generation) return;
       const start = await requestLicenseVerification(session, { action: 'start', certificate, deviceKey: device.publicKey });
@@ -327,6 +332,60 @@
       return platform === 'Chrome OS' || platform === 'ChromeOS';
     }
     return /\bCrOS\b/.test(navigator.userAgent || '');
+  }
+
+  async function issueAutomaticCertificate() {
+    if (!activeUserId || privateAppStarted) return;
+    const generation = loginGeneration;
+    autoCertificateBtn.disabled = true;
+    certStatus.hidden = false;
+    certStatus.className = 'cert-status';
+    certStatus.textContent = 'Skapar ditt certifikat…';
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      const session = data?.session;
+      if (error || !session || session.user.id !== activeUserId) throw new Error('Logga in igen.');
+      const device = await loadDevice(activeUserId);
+      const response = await fetch(SUPABASE_URL + '/functions/v1/issue-student-certificate', {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: 'Bearer ' + session.access_token,
+          'Content-Type': 'application/json'
+        },
+        cache: 'no-store',
+        body: JSON.stringify({ deviceKey: device.publicKey })
+      });
+      if (!response.ok) {
+        throw new Error(response.status === 403
+          ? 'Kontot är inte verifierat eller godkänt för studentåtkomst.'
+          : response.status === 409
+            ? 'Kontot är redan knutet till en annan Chrome-profil.'
+            : 'Certifikatet kunde inte skapas just nu.');
+      }
+      const { certificate } = await response.json();
+      if (generation !== loginGeneration) return;
+      if (typeof certificate !== 'string' || new TextEncoder().encode(certificate).byteLength > MAX_CERTIFICATE_BYTES) {
+        throw new Error('Servern skickade ett ogiltigt certifikat.');
+      }
+      const blob = new Blob([certificate], { type: 'application/json;charset=utf-8' });
+      const address = URL.createObjectURL(blob);
+      const download = document.createElement('a');
+      download.href = address;
+      download.download = 'student.certificate';
+      document.body.appendChild(download);
+      download.click();
+      download.remove();
+      setTimeout(() => URL.revokeObjectURL(address), 10_000);
+      await verifyUploadedCertificate(certificate);
+    } catch (error) {
+      if (generation === loginGeneration) {
+        certStatus.className = 'cert-status bad';
+        certStatus.textContent = error.message || 'Certifikatet kunde inte skapas.';
+      }
+    } finally {
+      if (generation === loginGeneration) autoCertificateBtn.disabled = privateAppStarted;
+    }
   }
 
   function init() {
@@ -452,7 +511,8 @@
     }
 
     copyDeviceIdBtn.addEventListener('click', copyDeviceId);
-    certFileInput.addEventListener('change', verifyUploadedCertificate);
+    autoCertificateBtn.addEventListener('click', issueAutomaticCertificate);
+    certFileInput.addEventListener('change', () => verifyUploadedCertificate());
 
     supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
