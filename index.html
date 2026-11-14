@@ -47,10 +47,22 @@
         <p id="login-error" class="error-msg" hidden></p>
       </form>
 
-      <div class="admin-note">
-        <p id="admin-note">🔒 Sidan är i testläge, kontoregistrering är tillfälligt stängt.</p>
-        <p class="small" id="admin-note-small">Endast invigda har tillträde.</p>
-      </div>
+      <section class="signup-panel" aria-labelledby="signup-heading">
+        <h2 id="signup-heading">Registrera studentkonto</h2>
+        <p class="small">Endast godkända studentadresser. E-postadressen måste verifieras innan kontot kan användas.</p>
+        <form id="signup-form" class="login-form">
+          <div class="input-group">
+            <label for="signup-email">Skolans e-postadress</label>
+            <input id="signup-email" type="email" autocomplete="email" placeholder="E1234@skola.se" required>
+          </div>
+          <div class="input-group">
+            <label for="signup-password">Välj lösenord</label>
+            <input id="signup-password" type="password" autocomplete="new-password" minlength="12" required>
+          </div>
+          <button type="submit" class="btn-primary" id="signup-btn"><span>SKAPA KONTO</span></button>
+          <p id="signup-feedback" class="cert-status" role="status" hidden></p>
+        </form>
+      </section>
     </div>
   </div>
 
