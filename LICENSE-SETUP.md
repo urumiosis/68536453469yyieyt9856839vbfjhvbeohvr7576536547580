@@ -1,5 +1,7 @@
 # Owner-signed, UTF-8 certificates for ChromeOS browsers
 
+For full student sign-up and Supabase deployment instructions, use [SUPABASE-STUDENT-SETUP.md](SUPABASE-STUDENT-SETUP.md).
+
 Each `.certificate` file is readable UTF-8 JSON with the recipient's Supabase account UUID, browser device ID, expiration date, **custom license text**, and a P-256 digital signature covering every signed field. Supabase checks your signature and asks the browser to prove it holds the private key for that device ID. The server allows one active device ID per account.
 
 The device ID belongs to one Chrome profile on one site origin. Use the same regular Chrome profile and site address every time. Guest mode, Incognito, a different profile, and cleared site data can lose or change the device ID. This uses a browser key and does not read a Chromebook serial number or attest its hardware. The site's ChromeOS-only check uses browser platform information and **can be spoofed**; it is a usability restriction, not security-grade Chromebook enforcement. Genuine ChromeOS hardware verification requires a separately provisioned managed ChromeOS Verified Access / extension setup. An IP address is not used as a device ID.
@@ -32,7 +34,9 @@ The command prints the **public key**. Keep the private key file outside the rep
 
 ## Enrollment and certificate issuance
 
-**Enrollment is owner-approved, not automatic:** The current site has registration disabled. Create or approve the user's Supabase account as you already do, then have that user sign in from Chrome on their Chromebook. Do **not** put the owner signing key or a signing endpoint that accepts arbitrary users on GitHub Pages.
+**New automatic student enrollment:** Read [SUPABASE-STUDENT-SETUP.md](SUPABASE-STUDENT-SETUP.md) first. The current branch includes a Supabase Auth Hook for confirmed school-format addresses and an `issue-license` Edge Function that generates a readable signed certificate after device proof. Sign-up remains unavailable in production until the database, Auth Hook, secrets and Edge Functions are configured. Do **not** put the owner signing key on GitHub Pages.
+
+**Manual backup method:** The following CLI steps still let an authorized site owner issue a certificate without the automatic enrollment service.
 
 ## Issue and use a certificate
 
