@@ -20,6 +20,8 @@
   const logoutBtn = document.getElementById('logout-btn');
   const certFileInput = document.getElementById('cert-file');
   const certStatus = document.getElementById('cert-status');
+  const certPreview = document.getElementById('certificate-preview');
+  const certPreviewText = document.getElementById('certificate-preview-text');
   const copyDeviceIdBtn = document.getElementById('copy-device-id');
   const autoCertificateBtn = document.getElementById('auto-certificate');
   const deviceIdInput = document.getElementById('device-id');
@@ -71,6 +73,9 @@
     dashboardScreen.classList.add('active');
     certFileInput.disabled = false;
     certStatus.hidden = true;
+    certPreview.hidden = true;
+    certPreview.open = false;
+    certPreviewText.textContent = '';
     copyDeviceIdBtn.disabled = false;
     autoCertificateBtn.disabled = false;
     deviceIdInput.hidden = true;
@@ -282,6 +287,13 @@
       const session = data?.session;
       if (error || session?.user?.id !== userId) throw new Error('Logga in igen.');
       const certificate = (certificateOverride ?? await file.text()).trim();
+      try {
+        const parsed = JSON.parse(certificate);
+        certPreviewText.textContent = JSON.stringify(parsed, null, 2);
+        certPreview.hidden = false;
+      } catch {
+        certPreview.hidden = true;
+      }
       if (new TextEncoder().encode(certificate).byteLength > MAX_CERTIFICATE_BYTES) {
         throw new Error('Ogiltigt certifikat.');
       }
