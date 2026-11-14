@@ -1,12 +1,13 @@
 import { webcrypto } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import {
-  ACCOUNT_ID, AUDIENCE, DEVICE_ID, encodeBase64Url, KEY_ALGORITHM, SIGN_ALGORITHM, VERSION
+  ACCOUNT_ID, AUDIENCE, DEVICE_ID, encodeBase64Url, KEY_ALGORITHM, SIGN_ALGORITHM,
+  MAX_LICENSE_LENGTH, MAX_LICENSE_TEXT_BYTES, VERSION
 } from '../supabase/functions/verify-license/license.mjs';
 
 const { subtle } = webcrypto;
 
-async function main([command, privateKeyPath, account, deviceId, expiry, outputPath, ...extra]) {
+async function main([command, privateKeyPath, account, deviceId, expiry, outputPath, licensePath, ...extra]) {
   if (command === 'keygen' && privateKeyPath && account === undefined) {
     const keys = await subtle.generateKey(KEY_ALGORITHM, true, ['sign', 'verify']);
     const privateKey = new Uint8Array(await subtle.exportKey('pkcs8', keys.privateKey));
@@ -16,8 +17,8 @@ async function main([command, privateKeyPath, account, deviceId, expiry, outputP
     return;
   }
 
-  if (command !== 'issue' || !privateKeyPath || !outputPath || extra.length) {
-    throw new Error('Usage: license.mjs keygen <private-key-path>\n       license.mjs issue <private-key-path> <user-uuid> <device-id> <UTC-expiry> <output.certificate>');
+  if (command !== 'issue' || !privateKeyPath || !account || !deviceId || !expiry || !outputPath || extra.length) {
+    throw new Error('Usage: license.mjs keygen <private-key-path>\n       license.mjs issue <private-key-path> <user-uuid> <device-id> <UTC-expiry> <output.certificate> [license.txt]');
   }
   const userId = account.toLowerCase();
   if (!ACCOUNT_ID.test(userId)) throw new Error('Use the account UUID from Supabase Authentication.');
@@ -30,12 +31,23 @@ async function main([command, privateKeyPath, account, deviceId, expiry, outputP
     throw new Error('Use a future UTC expiry in YYYY-MM-DDTHH:mm:ssZ format.');
   }
 
-  const privateKey = await subtle.importKey('pkcs8', await readFile(privateKeyPath), KEY_ALGORITHM, false, ['sign']);
+  const license = licensePath
+    ? (await readFile(licensePath, 'utf8')).replace(/\r\n/g, '\n').trim()
+    : 'Personal, non-transferable access for the specified account and ChromeOS browser profile.';
   const encoder = new TextEncoder();
-  const claims = { aud: AUDIENCE, sub: userId, device: deviceId, iat: now, exp };
-  const signed = `${VERSION}.${encodeBase64Url(encoder.encode(JSON.stringify(claims)))}`;
+  if (!license || encoder.encode(license).byteLength > MAX_LICENSE_TEXT_BYTES) {
+    throw new Error('License text must be nonempty and at most 2048 UTF-8 bytes.');
+  }
+
+  const privateKey = await subtle.importKey('pkcs8', await readFile(privateKeyPath), KEY_ALGORITHM, false, ['sign']);
+  const claims = { aud: AUDIENCE, sub: userId, device: deviceId, iat: now, exp, license };
+  const signed = VERSION + '.' + encodeBase64Url(encoder.encode(JSON.stringify(claims)));
   const signature = new Uint8Array(await subtle.sign(SIGN_ALGORITHM, privateKey, encoder.encode(signed)));
-  await writeFile(outputPath, `${signed}.${encodeBase64Url(signature)}\n`, { flag: 'wx', mode: 0o600 });
+  const certificate = JSON.stringify({ format: VERSION, claims, signature: encodeBase64Url(signature) }, null, 2) + '\n';
+  if (encoder.encode(certificate).byteLength > MAX_LICENSE_LENGTH) {
+    throw new Error('The certificate exceeds the 4096-byte upload limit.');
+  }
+  await writeFile(outputPath, certificate, { flag: 'wx', mode: 0o600 });
 }
 
 try {
