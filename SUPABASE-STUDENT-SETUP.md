@@ -1,190 +1,283 @@
-# Student sign-up, certificate issuance, and Supabase deployment
+# Anti Markaryd: Exact student email + certificate setup
 
-This is a **deployment checklist**, not a deployed service. The GitHub Pages
-frontend is public; the main application code stays in the Supabase private
-database and must only be released by the `verify-license` Edge Function.
-No private signing key or Supabase service-role key belongs in GitHub Pages.
+This guide is based on the **existing live Supabase project**, inspected on
+2026-11-14: `Anti Markaryd` / `eqwlikflvpyghkvhsxmz`. It prepares ordinary
+student membership access for authorized use, and does not conceal a site from
+school administrators or change any school-managed access rules.
 
-The website recognizes a ChromeOS browser platform string for its UI gate,
-but that is **not hardware attestation** and can be spoofed. The device ID is a
-SHA-256 fingerprint of a non-exportable browser-profile public key, not a
-Chromebook serial number or an IP address.
+**No Supabase database changes or Edge Function deployments were performed
+automatically.** PR #5 remains unmerged.
 
-## 0. Back up the database, and keep sign-up disabled initially
+## Student account format
 
-Open your Supabase project (the frontend uses project ref
-`eqwlikflvpyghkvhsxmz`). Check the live schema before running migrations and
-back up `public.private_app_code` row 1 and any existing policies. In Supabase
-**Authentication → General Configuration**, leave **Allow new users to sign up**
-OFF until step 3 is complete. The new policy defaults to DENY: no school domain
-is configured in the repository.
+```text
+e####@edu.markaryd.se
+```
 
-Important: PR #5's older `LICENSE-SETUP.md` references a **private
-`install-signed-license.sql`** and private application JavaScript supplied
-separately. Those bytes are not in this public repository. Obtain/reconcile
-that installer before deploying changes to your private application code.
-Do not replace or overwrite private row 1 without verifying you have the
-correct installer and a backup.
+The local part is `e` followed by **exactly four digits**; the domain is
+**exactly** `edu.markaryd.se`. Matching is case-insensitive. Examples:
+`e1234@edu.markaryd.se` passes the pattern, `e12345@edu.markaryd.se`,
+`e1234@gmail.com`, and `teacher@edu.markaryd.se` do not.
 
-## 1. Apply the student policy SQL
+**An email format is not identity verification.** Enable email confirmation
+so a person must have access to that actual school mailbox. The live database
+is additionally configured for an **approved roster**; only actively approved
+addresses can register or receive certificates. Maintain it with appropriate
+authorization. If the school offers official student SSO, that is better
+assurance than a regex.
 
-In **Supabase → SQL Editor → New query**, paste and run the complete contents
-of `supabase/migrations/202611140001_student_signup_policy.sql`.
+## What is already installed in Supabase
 
-In another SQL Editor query, replace the placeholder domain with the **exact
-real school email domain**, then run:
+The live database already has:
+- `public.student_signup_config (id, email_domain, enabled)`
+- `public.student_approved_emails (email, active, approved_at)`
+- `public.hook_restrict_student_signup(event jsonb)`
+
+At inspection time, configuration row 1 had `email_domain = NULL` and
+`enabled = false`; the approved roster was empty. The existing hook checks
+the exact student pattern, domain, enabled flag, and active roster entry.
+**Do not install the earlier duplicate `student_registration_config`,
+`student_signup_allowlist`, or `hook_only_student_signup` approach.**
+
+No Edge Functions or `public.license_devices` table were deployed yet.
+The present `public.private_app_code` policy permits direct SELECT by any
+authenticated account, so it needs to be restricted before you claim the
+protected second JavaScript layer is certificate-gated.
+
+## Step 1 — Back up and check existing data
+
+Open https://supabase.com/dashboard/project/eqwlikflvpyghkvhsxmz.
+Take an appropriate database backup first; especially preserve the private
+`public.private_app_code` content and policies. Check that you have the
+private SQL installer mentioned in `LICENSE-SETUP.md`. **Do not overwrite
+private app code with an incomplete copy.**
+
+Leave **Allow new users to sign up** disabled in Auth until all below checks
+are complete.
+
+## Step 2 — Set the exact domain, initially disabled
+
+Open **SQL Editor** and execute:
 
 ```sql
-update public.student_registration_config
-set email_domain = 'students.example.edu',
-    require_allowlist = false
+update public.student_signup_config
+set email_domain = 'edu.markaryd.se',
+    enabled = false
+where id = 1;
+
+select id, email_domain, enabled
+from public.student_signup_config
 where id = 1;
 ```
 
-This example is **not** a real school domain. The rule permits only addresses
-whose lowercase form is exactly `e` + **four digits** + `@` + the configured
-domain: `e1234@students.example.edu` passes, but `e12345@...`,
-`teacher@...`, and `e1234@gmail.com` do not.
+The SELECT must show the exact domain and `false`. This sets up the expected
+domain without opening registration.
 
-If you need **only currently authorized members** rather than everyone with a
-matching email shape, obtain an authorized roster and enable allowlisting:
+## Step 3 — Add authorized student addresses to your existing roster
+
+Only add addresses you have permission to approve. For each *real, confirmed*
+member, replace the example below with their exact email:
 
 ```sql
-insert into public.student_signup_allowlist(email)
-values ('e1234@students.example.edu'), ('e5678@students.example.edu')
-on conflict do nothing;
+insert into public.student_approved_emails (email, active)
+values ('e1234@edu.markaryd.se', true)
+on conflict (email)
+do update set active = excluded.active;
+```
 
-update public.student_registration_config
-set require_allowlist = true
+That is a **placeholder**, not an actual approved account.
+
+To review the roster without disclosing email addresses, run:
+
+```sql
+select count(*) as approved_students
+from public.student_approved_emails where active;
+```
+
+This project is currently **roster-first**. Leaving the list empty means no
+one can sign up even when their email matches the regex. If you want fully
+automatic eligibility, arrange an authorized roster sync with your school's
+identity system; a formatting rule alone cannot prove current enrollment.
+Do not publish the roster on GitHub or put it in browser JavaScript.
+
+To revoke a member's authorization, disable the entry (and disable or end
+their Auth session when necessary):
+
+```sql
+update public.student_approved_emails
+set active = false
+where email = 'e1234@edu.markaryd.se';
+```
+
+## Step 4 — Enable the EXISTING Supabase Auth Hook
+
+In **Authentication → Hooks → Before User Created**, select
+**Postgres Function → public.hook_restrict_student_signup**. Enable and save.
+
+The exact existing function has already been created and the
+`supabase_auth_admin` role has EXECUTE permission. Supabase Auth Hooks
+documentation:
+https://supabase.com/docs/guides/auth/auth-hooks/before-user-created-hook
+
+Do **not** select the old draft's `hook_only_student_signup` name.
+The hook must be enabled before the general sign-up toggle.
+
+## Step 5 — Enable confirmed email sign-up
+
+In **Authentication → Providers → Email**:
+- Enable Email / password sign-up.
+- Enable **Confirm Email** (important: do not allow unconfirmed email access).
+- Configure SMTP if your project needs it; test delivery to a real school
+  mailbox. Consider rate limits / CAPTCHA.
+
+In **Authentication → URL Configuration**:
+- Site URL: `https://anti-markaryd.com`
+- Add `https://anti-markaryd.com/**` to allowed redirect URLs.
+
+In **Authentication → General Configuration**:
+- Keep **Allow anonymous sign-ins** disabled.
+- After the hook and email provider have been verified, enable
+  **Allow new users to sign up**.
+
+Finally, in **SQL Editor**, enable your configured registration policy:
+
+```sql
+update public.student_signup_config
+set email_domain = 'edu.markaryd.se',
+    enabled = true
 where id = 1;
 ```
 
-Do not put a student roster in the public GitHub repository. Revoking a member
-in allowlist mode requires removing their entry and, if applicable, disabling
-their Supabase Auth account. In format-only mode, matching addresses are
-eligible automatically; **an email pattern cannot independently prove student
-status**.
+Verify what is enabled, then test one approved school mailbox. Do not publish
+the new front end until the private-code access restriction and certificate
+functions below are working.
 
-## 2. Enable the *server-side* Before User Created Auth Hook
+## Step 6 — Install the certificate eligibility RPC for your EXISTING tables
 
-In **Supabase → Authentication → Hooks → Before User Created**:
-- Choose **Postgres Function**.
-- Select `public.hook_only_student_signup`.
-- Enable and save the hook.
+Run `supabase/migrations/202611140001_student_signup_policy.sql` from this
+pull request in the SQL Editor. **The revised file does not create duplicate
+tables or a duplicate Auth Hook.** It defines a
+`public.student_email_allowed(text)` function that the server-side license
+functions use to check your existing active roster, enabled flag, exact email
+pattern, and domain. Only `service_role` may execute it over the Data API.
 
-This hook rejects nonmatching email addresses *before* account creation. The
-browser-only regex is a convenience, not a security boundary. Review official
-documentation: https://supabase.com/docs/guides/auth/auth-hooks/before-user-created-hook
+As a basic check, run:
 
-## 3. Enable Supabase email sign-up with email confirmation
+```sql
+select
+  public.student_email_allowed('teacher@edu.markaryd.se') as staff_format,
+  public.student_email_allowed('e12345@edu.markaryd.se') as wrong_length,
+  public.student_email_allowed('e1234@gmail.com') as wrong_domain;
+```
 
-In **Authentication → Providers → Email**, enable the Email provider and
-**Confirm Email**. In **Authentication → General Configuration**, enable
-**Allow new users to sign up** *only after the hook and domain are configured*.
-Keep anonymous sign-ins disabled. Consider CAPTCHA, rate limits, and a
-configured SMTP service before inviting many users.
+These should all return `false`. An example `e1234@edu.markaryd.se` should
+return `true` **only if it has been actively approved in your roster**.
 
-In **Authentication → URL Configuration**, set Site URL to
-`https://anti-markaryd.com`. Add only your actual approved redirect origins
-(e.g. `https://anti-markaryd.com/**`). The frontend calls Supabase's
-`signUp` method and then asks the student to follow the confirmation email
-before logging in. The email confirmation link and redirect must work before
-certificates can be issued.
+## Step 7 — Prepare the certificate signing key locally
 
-## 4. Set up the owner signing keys **outside Git**
-
-On your trusted local machine, from a checkout of branch
-`codex/owner-signed-licenses` (Node.js 20+):
+On a trusted computer with Node.js 20+ and this PR branch checked out:
 
 ```sh
 node scripts/license.mjs keygen "$HOME/anti-markaryd-signing-key.pk8"
+
 node scripts/prepare-license-secrets.mjs \
   "$HOME/anti-markaryd-signing-key.pk8" \
   "$HOME/anti-markaryd-secrets.env"
 ```
 
-The second command writes `LICENSE_PRIVATE_KEY` and `LICENSE_PUBLIC_KEY`
-to a file outside the repository with restrictive permissions. **Never
-commit, publish, upload, or share this file**. Back up the original private
-key securely. The same public key must be used by both issuing and verifying
-functions. The `LICENSE_TEXT` Edge Function secret can hold your custom
-license text (UTF-8, up to 2048 bytes). For example:
-`Personal, non-transferable access to the named account and browser profile.`
-Set `LICENSE_VALID_DAYS` to a whole number between 1 and 365 if you want
-something other than the default 90-day certificate validity. Automatically
-issuing a fresh certificate on later sign-ins means **certificate expiration
-alone does not revoke membership**. To revoke, disable the account or enforce
-an up-to-date membership/allowlist check.
+The first command generates your signing key; the second prepares a local env
+file with `LICENSE_PRIVATE_KEY` and `LICENSE_PUBLIC_KEY`. **Do not commit
+either file, share the private key, or put it in GitHub Pages JavaScript.**
 
-In **Supabase → Edge Functions → Secrets**, set the keys from that local env
-file, plus any optional `LICENSE_TEXT`, `LICENSE_VALID_DAYS`, and
-`LICENSE_ALLOWED_ORIGINS` values. Alternatively, with the Supabase CLI:
+In **Supabase → Edge Functions → Secrets**, paste these two values from the
+local env file. Optionally set:
+- `LICENSE_TEXT`: your custom human-readable UTF-8 license terms, up to 2048
+  UTF-8 bytes (e.g. `Personal access for this registered student account.`)
+- `LICENSE_VALID_DAYS`: an integer from 1 to 365 (default: 90)
+- `LICENSE_ALLOWED_ORIGINS`: `https://anti-markaryd.com`
+
+If using CLI instead, run `supabase login`,
+`supabase link --project-ref eqwlikflvpyghkvhsxmz`, then
+`supabase secrets set --env-file "$HOME/anti-markaryd-secrets.env"`.
+Use `supabase secrets set --help` to confirm flags for your installed CLI.
+Supabase docs: https://supabase.com/docs/guides/functions/secrets
+
+## Step 8 — Install private content security and device binding
+
+Back up the database and inspect existing policy dependencies first.
+This currently matters because the live database allows **any signed-in
+account to SELECT** `public.private_app_code` directly, bypassing the proposed
+certificate gate.
+
+Review and apply the pull request's
+`supabase/migrations/202611110001_require_signed_license.sql`
+to block direct frontend reads, and
+`supabase/migrations/202611110002_bind_license_device.sql`
+to add `license_devices` and server-only challenge RPCs.
+
+**The private app JavaScript and private `install-signed-license.sql` were
+supplied separately and are not contained in the public GitHub PR.** Reconcile
+the private installer before changing or deploying the second JavaScript
+layer. Applying SQL before the new frontend and Edge Functions work may cause
+temporary access interruption.
+
+## Step 9 — Deploy the Edge Functions
+
+From the checked-out PR branch, using the Supabase CLI:
 
 ```sh
 supabase login
 supabase link --project-ref eqwlikflvpyghkvhsxmz
-supabase secrets set --env-file "$HOME/anti-markaryd-secrets.env"
-```
 
-Use the Secrets dashboard to set `LICENSE_TEXT` if you want to avoid quoting
-or shell-escaping multi-line UTF-8 license text.
-
-## 5. Install the device-binding migration and deploy functions
-
-Apply `supabase/migrations/202611110002_bind_license_device.sql` with the SQL
-Editor, after reviewing existing schemas and taking backups. This creates
-`public.license_devices` and the server-only challenge RPCs used by BOTH
-functions. The private-content RLS migration
-`supabase/migrations/202611110001_require_signed_license.sql`
-is also required for the protected code gate; coordinate it with your private
-SQL installer so that the site is never deployed with unprotected private
-content.
-
-Deploy the Edge Functions from this branch (CLI uses your linked project):
-
-```sh
 supabase functions deploy issue-license --no-verify-jwt
 supabase functions deploy verify-license --no-verify-jwt
 ```
 
-`--no-verify-jwt` **does not disable user authentication in the code**:
-both functions explicitly validate the Bearer token with
-`supabase.auth.getUser(token)`, and both require the school email to be
-confirmed and eligible. Supabase's API gateway may not natively validate
-certain newer publishable-key token combinations; the Edge code checks them
-itself. Do not remove those checks.
+The flags are intentionally used because each function explicitly validates
+the Bearer token with `supabase.auth.getUser`. **Do not remove that internal
+authentication.** The Supabase host supplies `SUPABASE_URL`, the legacy
+`SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` in the deployed runtime;
+never copy a service role key into the public browser scripts.
 
-## 6. Verify the first student end to end
+Confirm both appear in the **Edge Functions** page and inspect execution
+logs if calls fail. Do not deploy a private signing key in source code.
 
-1. From Chrome on a Chromebook, sign up with a real, eligible school email.
-2. Click the confirmation link delivered to that mailbox; then sign in.
-3. The site generates a browser-profile P-256 key in IndexedDB, asks the
-   `issue-license` function for a challenge, signs it with the non-exportable
-   private key, and receives a **UTF-8 JSON** certificate.
-4. Click **Ladda ned mitt certifikat** and save the `student.certificate`
-   file. Click **Visa mitt certifikat och licensen** to read its fields and
-   custom text directly in the site. The signature covers all claims.
-5. Upload the same file via **Ladda upp**. The `verify-license` function
-   checks the owner signature, the authenticated account, the profile device
-   key, student eligibility, and the one-time challenge. Only then should
-   Supabase return the protected JavaScript.
-6. Test negative cases: wrong email format, different email domain,
-   unconfirmed mailbox, copied certificate in another browser profile,
-   altered license text, expired certificate, and revoked member.
+## Step 10 — Test the entire student flow, then merge PR #5
 
-For the issuance/verification logic, run `node --test tests/license.test.mjs`
-locally before merging. The browser, Supabase SQL, private installer, and
-production deployment require separate end-to-end testing.
+1. With an authorized school Chromebook and an **active approved** student
+   address, sign up at `https://anti-markaryd.com` and follow the email
+   verification message.
+2. Sign in using that confirmed account and the same normal Chrome profile.
+   The GitHub frontend creates a browser-profile key. The `issue-license`
+   function proves possession of that key and returns a readable UTF-8 JSON
+   certificate file with account, profile ID, expiry, custom license terms,
+   and owner signature.
+3. Choose **Visa mitt certifikat och licensen** to read it, then
+   **Ladda ned mitt certifikat** to save `student.certificate`.
+4. Upload the file through **Ladda upp**. `verify-license` checks the user,
+   membership authorization, owner signature, matching browser-profile key,
+   and a one-time challenge. Only after success does Supabase release the
+   **second, private application JavaScript**.
+5. Test failure cases: a non-school domain, wrong number of digits,
+   unapproved email, unverified email, copied certificate from another
+   browser profile, tampered license text, and an expired or revoked member.
+6. Run `node --test tests/license.test.mjs`. Inspect the PR GitHub Actions
+   result. After the live end-to-end checks succeed, merge PR #5 into `main`
+   and confirm GitHub Pages serves the updated version.
 
-## Important limitations
+### Important limitations
 
-- A plain website cannot reliably determine a Chromebook hardware serial
-  number. Browser platform checks are spoofable. Strong device proof requires
-  managed-device attestation supported by your school or organization.
-- Without a verified school domain or authorized student roster, no
-  email regex can guarantee that an account is held by a current student.
-- The certificates here are custom signed JSON credentials with a
-  `.certificate` extension. They are **not X.509 TLS certificates**.
-- The PR changes only the public loader, database migrations, and Edge
-  Functions in GitHub. It does not deploy to live Supabase or supply the
-  separately stored private app JavaScript or SQL installer.
+- This is a **custom signed JSON** `.certificate`, not an X.509 TLS cert.
+  It is human-readable and can be opened in a text editor.
+- A browser platform/user-agent check cannot reliably prove a physical
+  Chromebook; true Chromebook hardware attestation needs a managed-device
+  system supported by the organization.
+- A school-domain regex plus email verification demonstrates mailbox control,
+  not necessarily active student status. The currently configured approved
+  roster is an additional authorization check.
+- Any JavaScript loaded into the same website context (including third-party
+  scripts) may be able to observe page content. Review those scripts before
+  relying on client-side secrecy.
+- The public frontend and the second private JavaScript must be integrated
+  and tested together. This PR does not automatically deploy Supabase or
+  replace the separately stored private SQL/application source.
