@@ -8,9 +8,9 @@ The device ID belongs to one Chrome profile on one site origin. Use the same reg
 
 ## Student self-registration and automatic certificate download
 
-See [STUDENT-SUPABASE-SETUP.md](STUDENT-SUPABASE-SETUP.md) for the exact Supabase signup hook, approved-email roster, certificate issuing function, signing-key secrets, database rollout, and testing. The live project currently has registration disabled and its certificate functions are not deployed.
+See [SUPABASE-STUDENT-SETUP.md](SUPABASE-STUDENT-SETUP.md) for the exact `e0000`–`e9999@edu.markaryd.se` email rule, Supabase signup hook, certificate issuing function, signing-key secrets, database rollout, and testing. **Every matching school email is eligible; there is no approved-email roster.** Live registration remains disabled until certificate functions and private-code access restrictions are deployed and tested.
 
-Approved students can register and confirm their school email, then select **Skapa och ladda ner certifikat**. This downloads a signed, human-readable UTF-8 JSON file, provides a **Visa certifikat och licens** preview in the site, and verifies it against their local browser key. The private license signing key stays on the server. The manual owner issuance instructions below remain available.
+Students with matching addresses can register and confirm their school email, then select **Skapa och ladda ner certifikat**. This downloads a signed, human-readable UTF-8 JSON file, provides a **Visa certifikat och licens** preview in the site, and verifies it against their local browser key. The private license signing key stays on the server. The manual owner issuance instructions below remain available.
 
 ## Set up once
 
