@@ -51,6 +51,15 @@ Deno.serve(async (request) => {
     const auth = createClient(url, authKey, clientOptions);
     const { data: { user }, error } = await auth.auth.getUser(jwt);
     if (error || !user) return respond(401, { error: 'Sign in required' });
+    if (!user.email || !user.email_confirmed_at) {
+      return respond(403, { error: 'Confirm your school email first' });
+    }
+    const db = createClient(url, serviceKey, clientOptions);
+    const eligibility = await db.rpc('student_email_allowed', { p_email: user.email });
+    if (eligibility.error) throw eligibility.error;
+    if (eligibility.data !== true) {
+      return respond(403, { error: 'Account not eligible' });
+    }
     const key = await crypto.subtle.importKey('spki', decodeBase64Url(publicKey.trim()), KEY_ALGORITHM, false, ['verify']);
     const input = await readRequest(request).catch(() => null);
     if (input?.action !== 'start' && input?.action !== 'finish') {
@@ -75,7 +84,6 @@ Deno.serve(async (request) => {
 
     if (claims.device !== deviceId) return respond(409, { code: 'device_mismatch' });
 
-    const db = createClient(url, serviceKey, clientOptions);
     const device = { account_id: user.id, requested_device_id: deviceId };
     if (input.action === 'start') {
       const challenge = encodeBase64Url(crypto.getRandomValues(new Uint8Array(32)));
