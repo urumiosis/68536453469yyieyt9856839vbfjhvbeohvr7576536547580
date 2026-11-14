@@ -99,6 +99,15 @@
           <input id="device-id" type="text" aria-label="Enhets-ID" readonly hidden>
           <p id="device-id-status" role="status" hidden></p>
         </div>
+        <section id="auto-certificate" class="auto-certificate" hidden>
+          <p id="auto-certificate-status" role="status"></p>
+          <button id="retry-certificate" type="button" class="btn-ghost" hidden>Försök igen</button>
+          <a id="download-certificate" class="btn-play cert-download-link" download="student.certificate" hidden>Ladda ned mitt certifikat</a>
+          <details id="read-certificate" hidden>
+            <summary>Visa mitt certifikat och licensen</summary>
+            <pre id="certificate-text" class="cert-example"></pre>
+          </details>
+        </section>
         <p id="cert-status" class="cert-status" role="status" hidden></p>
       </section>
 
@@ -142,7 +151,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=am3"></script>
+  <script src="app.js?v=am5"></script>
   
   <script src="/anti-adblock.js"></script>
 
