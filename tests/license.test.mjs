@@ -30,7 +30,7 @@ test('owner-issued UTF-8 certificate verifies and altered claims are rejected', 
     const publicKey = await webcrypto.subtle.importKey(
       'spki', decodeBase64Url(keygen.stdout.trim()), KEY_ALGORITHM, false, ['verify']
     );
-    const expiration = new Date(Date.now() + 60 * 60 * 1000).toISOString().replace('.000Z', 'Z');
+    const expiration = new Date(Date.now() + 60 * 60 * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z');
     const issue = spawnSync(process.execPath,
       [cli, 'issue', keyPath, userId, deviceId, expiration, certPath, licensePath],
       { encoding: 'utf8' });
