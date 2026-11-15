@@ -1,10 +1,11 @@
 // Automatic owner-signed issuance after verified student email + device-key proof.
-// The PKCS#8 private signing key is stored ONLY in LICENSE_PRIVATE_KEY Edge secret.
+// A PKCS#8 signing key is either in an owner-provided Edge secret or in a service-role-only Supabase table.
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import {
   AUDIENCE, decodeBase64Url, DEVICE_ID, encodeBase64Url, KEY_ALGORITHM,
   MAX_LICENSE_LENGTH, MAX_LICENSE_TEXT_BYTES, SIGN_ALGORITHM, VERSION
 } from '../_shared/license.mjs';
+import { getOwnerSigningKeys } from '../_shared/signing-keys.mjs';
 
 const origins = new Set((Deno.env.get('LICENSE_ALLOWED_ORIGINS') ??
   'https://anti-markaryd.com,https://urumiosis.github.io').split(',').map(value => value.trim()));
@@ -64,7 +65,7 @@ Deno.serve(async request => {
     }
 
     const db = createClient(url, serviceKey, clientOptions);
-    const eligibility = await db.rpc('student_email_allowed', { p_email: user.email });
+    const eligibility = await db.rpc('license_account_allowed', { p_user_id: user.id, p_email: user.email });
     if (eligibility.error) throw eligibility.error;
     if (eligibility.data !== true) return respond(403, { error: 'Account not eligible' });
     if (!Number.isSafeInteger(configuredValidity) || configuredValidity < 1 || configuredValidity > 365 ||
@@ -91,9 +92,11 @@ Deno.serve(async request => {
       return respond(400, { error: 'Invalid device key' });
     }
 
-    // Fail closed if the owner has not installed the signing key.
+    // Use the owner's explicit secret key when configured, otherwise generate
+    // and store a service-role-only signing key at the first eligible login.
+    const signingMaterial = privateKeyBytes || (await getOwnerSigningKeys(db, true)).privateKey;
     const signer = await crypto.subtle.importKey(
-      'pkcs8', decodeBase64Url(privateKeyBytes), KEY_ALGORITHM, false, ['sign']
+      'pkcs8', decodeBase64Url(signingMaterial), KEY_ALGORITHM, false, ['sign']
     );
 
     const device = { account_id: user.id, requested_device_id: deviceId };
