@@ -6,6 +6,20 @@
   <title>Anti Markaryd</title>
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <!-- Unregister obsolete service workers before account or certificate use. -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations()
+        .then(registrations => {
+          for (const registration of registrations) {
+            if (new URL(registration.scope).origin === location.origin) {
+              void registration.unregister();
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  </script>
   <!-- Pinned UMD build so window.supabase is always available -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   </head>
