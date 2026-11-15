@@ -11,9 +11,6 @@
   const loginScreen = document.getElementById('login-screen');
   const dashboardScreen = document.getElementById('dashboard-screen');
   const loginForm = document.getElementById('login-form');
-  const signupForm = document.getElementById('signup-form');
-  const signupBtn = document.getElementById('signup-btn');
-  const signupFeedback = document.getElementById('signup-feedback');
   const loginBtn = document.getElementById('login-btn');
   const loginError = document.getElementById('login-error');
   const userEmailEl = document.getElementById('user-email');
@@ -22,14 +19,11 @@
   const certStatus = document.getElementById('cert-status');
   const certPreview = document.getElementById('certificate-preview');
   const certPreviewText = document.getElementById('certificate-preview-text');
-  const copyDeviceIdBtn = document.getElementById('copy-device-id');
-  const autoCertificateBtn = document.getElementById('auto-certificate');
-  const deviceIdInput = document.getElementById('device-id');
-  const deviceIdStatus = document.getElementById('device-id-status');
+  const firstTimeCertificate = document.getElementById('first-time-certificate');
+  const issueFirstCertificateBtn = document.getElementById('issue-first-certificate');
   const lockedSite = document.getElementById('locked-site');
-  const autoCertificate = document.getElementById('auto-certificate-panel');
+  const certificateIssuance = document.getElementById('certificate-issuance');
   const autoCertificateStatus = document.getElementById('auto-certificate-status');
-  const retryCertificate = document.getElementById('retry-certificate');
   const downloadCertificate = document.getElementById('download-certificate');
   const readCertificate = document.getElementById('read-certificate');
   const certificateText = document.getElementById('certificate-text');
@@ -71,26 +65,29 @@
     dashboardScreen.hidden = false;
     dashboardScreen.setAttribute('aria-hidden', 'false');
     dashboardScreen.classList.add('active');
+
+    // Every login starts locked, regardless of the previous session.
+    privateAppStarted = false;
+    lockedSite.hidden = true;
     certFileInput.disabled = false;
+    certFileInput.value = '';
     certStatus.hidden = true;
     certPreview.hidden = true;
     certPreview.open = false;
     certPreviewText.textContent = '';
-    copyDeviceIdBtn.disabled = false;
-    autoCertificateBtn.disabled = false;
-    deviceIdInput.hidden = true;
-    deviceIdInput.value = '';
-    deviceIdStatus.hidden = true;
-    if (autoCertificate) {
-      autoCertificate.hidden = false;
-      autoCertificateStatus.textContent = 'Skapar ditt personliga certifikat…';
-      retryCertificate.hidden = true;
-      downloadCertificate.hidden = true;
-      readCertificate.hidden = true;
-      if (certificateDownloadUrl) URL.revokeObjectURL(certificateDownloadUrl);
-      certificateDownloadUrl = null;
-      void issueStudentCertificate(user.id, loginGeneration);
-    }
+    firstTimeCertificate.hidden = true;
+    issueFirstCertificateBtn.disabled = false;
+    certificateIssuance.hidden = true;
+    autoCertificateStatus.textContent = '';
+    downloadCertificate.hidden = true;
+    readCertificate.hidden = true;
+    certificateText.textContent = '';
+    if (certificateDownloadUrl) URL.revokeObjectURL(certificateDownloadUrl);
+    certificateDownloadUrl = null;
+
+    // The status request never issues a certificate. Existing users only
+    // see the upload control; first-time users may explicitly issue once.
+    void checkFirstCertificateStatus(user.id, loginGeneration);
   }
 
   function expireAppAt(deadline) {
@@ -152,34 +149,6 @@
     }
   }
 
-  async function copyDeviceId() {
-    if (!activeUserId) return;
-    const generation = loginGeneration;
-    copyDeviceIdBtn.disabled = true;
-    try {
-      const device = await loadDevice(activeUserId);
-      if (loginGeneration !== generation) return;
-      deviceIdInput.value = device.id;
-      deviceIdInput.hidden = false;
-      try {
-        await navigator.clipboard.writeText(device.id);
-        deviceIdStatus.textContent = 'Enhets-ID kopierat. Skicka det till webbplatsens ägare.';
-      } catch {
-        deviceIdInput.focus();
-        deviceIdInput.select();
-        deviceIdStatus.textContent = 'Kopiera enhets-ID:t och skicka det till webbplatsens ägare.';
-      }
-    } catch (error) {
-      if (loginGeneration !== generation) return;
-      deviceIdStatus.textContent = error.message;
-    } finally {
-      if (loginGeneration === generation) {
-        deviceIdStatus.hidden = false;
-        copyDeviceIdBtn.disabled = false;
-      }
-    }
-  }
-
   async function requestCertificateIssuance(session, body) {
     const response = await fetch(SUPABASE_URL + '/functions/v1/issue-license', {
       method: 'POST',
@@ -193,15 +162,42 @@
     });
     if (response.status === 401) throw new Error('Logga in igen.');
     if (response.status === 403) throw new Error('Skolmejlen måste vara verifierad, eller logga in med det befintliga administratörskontot.');
-    if (response.status === 409) throw new Error('Kontot är redan kopplat till en annan Chrome-profil. Kontakta administratören.');
+    if (response.status === 409) {
+      const detail = await response.json().catch(() => ({}));
+      if (detail.code === 'certificate_already_issued') {
+        const err = new Error('Ditt certifikat är redan utfärdat. Ladda upp din sparade fil eller kontakta administratören.');
+        err.alreadyIssued = true;
+        throw err;
+      }
+      throw new Error('Kontot är redan kopplat till en annan Chrome-profil. Kontakta administratören.');
+    }
     if (!response.ok) throw new Error('Certifikattjänsten är inte klar eller är tillfälligt otillgänglig.');
     return response.json();
   }
 
+  async function checkFirstCertificateStatus(userId, generation) {
+    firstTimeCertificate.hidden = true;
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      const session = data?.session;
+      if (error || !session || session.user.id !== userId) return;
+      const status = await requestCertificateIssuance(session, { action: 'status' });
+      if (generation !== loginGeneration || activeUserId !== userId) return;
+      // Unknown server response means no issuance option (fail closed).
+      firstTimeCertificate.hidden = status?.issued !== false;
+    } catch (error) {
+      if (generation !== loginGeneration || activeUserId !== userId) return;
+      certStatus.hidden = false;
+      certStatus.className = 'cert-status bad';
+      certStatus.textContent = 'Kunde inte kontrollera certifikatstatus. Ladda upp din sparade fil eller försök igen senare.';
+    }
+  }
+
   async function issueStudentCertificate(userId, generation) {
-    if (!autoCertificateStatus || !activeUserId || privateAppStarted) return;
-    autoCertificateStatus.textContent = 'Skapar ditt personliga certifikat…';
-    retryCertificate.hidden = true;
+    if (firstTimeCertificate.hidden || !activeUserId || privateAppStarted) return;
+    issueFirstCertificateBtn.disabled = true;
+    certificateIssuance.hidden = false;
+    autoCertificateStatus.textContent = 'Skapar ditt första certifikat…';
     try {
       const { data, error } = await supabase.auth.getSession();
       const session = data?.session;
@@ -213,7 +209,7 @@
         action: 'start', deviceKey: device.publicKey
       });
       if (typeof challenge !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(challenge)) {
-        throw new Error('Enhetsverifieringen misslyckades.');
+        throw new Error('Verifieringen misslyckades.');
       }
       const proofText = ['anti-markaryd-enrollment-v1', userId, challenge, device.publicKey].join('\n');
       const signedProof = new Uint8Array(await crypto.subtle.sign(
@@ -241,11 +237,14 @@
       downloadCertificate.hidden = false;
       certificateText.textContent = certificate;
       readCertificate.hidden = false;
-      autoCertificateStatus.textContent = 'Certifikatet är klart. Ladda ned det och ladda upp filen ovan för att fortsätta.';
+      firstTimeCertificate.hidden = true;
+      autoCertificateStatus.textContent = 'Certifikatet är klart. Ladda ned och spara filen. Du behöver den vid varje inloggning.';
     } catch (error) {
       if (generation !== loginGeneration) return;
+      if (error.alreadyIssued) firstTimeCertificate.hidden = true;
       autoCertificateStatus.textContent = error.message || 'Certifikatet kunde inte skapas.';
-      retryCertificate.hidden = false;
+    } finally {
+      if (generation === loginGeneration) issueFirstCertificateBtn.disabled = false;
     }
   }
 
@@ -375,43 +374,12 @@
       }
     );
 
-    if (signupForm) {
-      signupForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        signupFeedback.hidden = false;
-        signupFeedback.textContent = 'Registrerar…';
-        signupFeedback.className = 'cert-status';
-        signupBtn.disabled = true;
-        const email = document.getElementById('signup-email').value.trim().toLowerCase();
-        const password = document.getElementById('signup-password').value;
-        try {
-          // UX check only: Supabase's Before User Created hook enforces the exact school domain.
-          if (!/^e[0-9]{4}@edu\.markaryd\.se$/i.test(email)) {
-            throw new Error('Använd din skolmejl: E + fyra siffror @edu.markaryd.se.');
-          }
-          if (password.length < 12) throw new Error('Lösenordet måste ha minst 12 tecken.');
-          const { error } = await supabase.auth.signUp({
-            email, password,
-            options: { emailRedirectTo: window.location.origin + '/' }
-          });
-          if (error) throw error;
-          signupFeedback.className = 'cert-status ok';
-          signupFeedback.textContent = 'Om adressen är godkänd får du ett verifieringsmejl. Öppna länken innan du loggar in.';
-        } catch (error) {
-          signupFeedback.className = 'cert-status bad';
-          signupFeedback.textContent = error.message || 'Registreringen kunde inte slutföras.';
-        } finally {
-          signupBtn.disabled = false;
-        }
-      });
-    }
-
     if (loginForm) {
       loginForm.addEventListener('submit', async (event) => {
         event.preventDefault();
 
         if (loginError) loginError.hidden = true;
-        setBusy(true, 'LOGGAR IN...');
+        setBusy(true, 'Loggar in…');
 
         const email =
           document.getElementById('email')?.value.trim() || '';
@@ -421,7 +389,7 @@
 
         if (!email || !password) {
           showLoginError('Fyll i både e-post och lösenord.');
-          setBusy(false, 'LOGGA IN');
+          setBusy(false, 'Logga in');
           return;
         }
 
@@ -447,7 +415,7 @@
             error.message || 'Nätverksfel vid inloggning.'
           );
         } finally {
-          setBusy(false, 'LOGGA IN');
+          setBusy(false, 'Logga in');
         }
       });
     }
@@ -462,15 +430,10 @@
       });
     }
 
-    if (retryCertificate) {
-      retryCertificate.addEventListener('click', () => {
-        if (activeUserId) void issueStudentCertificate(activeUserId, loginGeneration);
-      });
-    }
-
-    copyDeviceIdBtn.addEventListener('click', copyDeviceId);
-    autoCertificateBtn.addEventListener('click', () => {
-      if (activeUserId) void issueStudentCertificate(activeUserId, loginGeneration);
+    issueFirstCertificateBtn.addEventListener('click', () => {
+      if (activeUserId && !issueFirstCertificateBtn.disabled) {
+        void issueStudentCertificate(activeUserId, loginGeneration);
+      }
     });
     certFileInput.addEventListener('change', () => verifyUploadedCertificate());
 
