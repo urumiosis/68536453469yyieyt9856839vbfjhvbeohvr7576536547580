@@ -118,7 +118,7 @@ Deno.serve(async (request) => {
       db.from('site_content').select('content').eq('id', 1).maybeSingle(),
       db.from('game_catalog').select('id,title,description,emoji,launch_url')
         .eq('enabled', true).order('sort_order', { ascending: true }),
-      db.from('profiles').select('full_name').eq('id', user.id).maybeSingle()
+      db.from('profiles').select('full_name,role').eq('id', user.id).maybeSingle()
     ]);
     if (app.error || typeof app.data?.code !== 'string' || !app.data.code ||
         content.error || games.error || profile.error) {
@@ -131,6 +131,7 @@ Deno.serve(async (request) => {
       content: content.data?.content ?? {},
       games: games.data,
       fullName: profile.data?.full_name ?? null,
+      isOwner: profile.data?.role === 'admin',
       expiresInMs
     });
   } catch (error) {
