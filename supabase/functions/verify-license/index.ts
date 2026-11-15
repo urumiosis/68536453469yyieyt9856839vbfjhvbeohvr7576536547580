@@ -1,5 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
-import { decodeBase64Url, encodeBase64Url, KEY_ALGORITHM, MAX_LICENSE_LENGTH, SIGN_ALGORITHM, verifyLicense } from '../_shared/license.mjs';
+import { decodeBase64Url, encodeBase64Url, DEVICE_ID, KEY_ALGORITHM, MAX_LICENSE_LENGTH, SIGN_ALGORITHM, verifyLicense } from '../_shared/license.mjs';
 import { getOwnerSigningKeys } from '../_shared/signing-keys.mjs';
 
 const origins = new Set((Deno.env.get('LICENSE_ALLOWED_ORIGINS') ??
@@ -30,6 +30,48 @@ async function readRequest(request: Request) {
   } finally {
     if (size > MAX_REQUEST_BYTES) await reader.cancel();
     reader.releaseLock();
+  }
+}
+
+
+/**
+ * Record a signal about the authenticated uploader, never about the account
+ * named by an unverified certificate. Deduplicate by hour to avoid a row flood.
+ * Logging must never grant access or make an invalid certificate valid.
+ */
+async function recordUploadSecurityEvent(db, accountId, eventType) {
+  console.warn('Certificate upload rejected', { eventType, accountId });
+  const now = Date.now();
+  const windowStart = new Date(Math.floor(now / 3600000) * 3600000).toISOString();
+  try {
+    const { error } = await db.from('certificate_security_events').upsert({
+      account_id: accountId,
+      event_type: eventType,
+      hour_bucket: windowStart,
+      last_seen_at: new Date(now).toISOString()
+    }, { onConflict: 'account_id,event_type,hour_bucket' });
+    if (error) console.error('Certificate audit unavailable', { code: error.code });
+  } catch {
+    console.error('Certificate audit temporarily unavailable');
+  }
+}
+
+/**
+ * A self-claimed ID in an INVALID certificate is untrusted. Comparing it to
+ * the submitted public key only supports a low-confidence audit category;
+ * it cannot authorize a device ban or establish real hardware identity.
+ */
+async function claimsDeviceFromUnverifiedCertificate(certificate, deviceKey) {
+  try {
+    if (typeof certificate !== 'string' || typeof deviceKey !== 'string') return false;
+    const claimed = JSON.parse(certificate)?.claims?.device;
+    if (typeof claimed !== 'string' || !DEVICE_ID.test(claimed)) return false;
+    const raw = decodeBase64Url(deviceKey);
+    if (raw.length !== 65 || raw[0] !== 4) return false;
+    const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', raw));
+    return claimed === encodeBase64Url(hash);
+  } catch {
+    return false;
   }
 }
 
@@ -67,8 +109,18 @@ Deno.serve(async (request) => {
     if (input?.action !== 'start' && input?.action !== 'finish') {
       return respond(400, { error: 'Invalid verification request' });
     }
+    // Verify the owner's signature and matching authenticated account FIRST.
+    // Never trust a claimed device ID to ban or delete a user before this check.
     const claims = await verifyLicense(input.certificate, key, user.id);
-    if (!claims) return respond(403, { error: 'Invalid or expired certificate' });
+    if (!claims) {
+      const claimedDevice = await claimsDeviceFromUnverifiedCertificate(
+        input.certificate, input.deviceKey
+      );
+      await recordUploadSecurityEvent(db, user.id, claimedDevice
+        ? 'untrusted_matching_device_claim'
+        : 'invalid_certificate');
+      return respond(403, { code: 'invalid_certificate', error: 'Invalid certificate' });
+    }
 
     let deviceKey: CryptoKey;
     let deviceId: string;
@@ -84,7 +136,13 @@ Deno.serve(async (request) => {
       return respond(400, { error: 'Invalid device key' });
     }
 
-    if (claims.device !== deviceId) return respond(409, { code: 'device_mismatch' });
+    if (claims.device !== deviceId) {
+      // A valid signature proves the certificate is authentic, NOT that it
+      // was stolen. A changed browser profile is also a legitimate explanation.
+      // Log the authenticated uploader for manual review; do not ban anybody.
+      await recordUploadSecurityEvent(db, user.id, 'signed_device_mismatch');
+      return respond(409, { code: 'device_mismatch' });
+    }
 
     const device = { account_id: user.id, requested_device_id: deviceId };
     if (input.action === 'start') {
@@ -107,7 +165,10 @@ Deno.serve(async (request) => {
     } catch {
       return respond(400, { error: 'Invalid device proof' });
     }
-    if (!validProof) return respond(409, { code: 'device_retry' });
+    if (!validProof) {
+      await recordUploadSecurityEvent(db, user.id, 'invalid_device_proof');
+      return respond(409, { code: 'device_retry' });
+    }
 
     const consumed = await db.rpc('finish_license_device_challenge', { ...device, nonce: challenge });
     if (consumed.error) throw consumed.error;
