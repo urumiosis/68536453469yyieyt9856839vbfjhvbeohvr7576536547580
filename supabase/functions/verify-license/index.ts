@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { decodeBase64Url, encodeBase64Url, KEY_ALGORITHM, MAX_LICENSE_LENGTH, SIGN_ALGORITHM, verifyLicense } from '../_shared/license.mjs';
+import { getOwnerSigningKeys } from '../_shared/signing-keys.mjs';
 
 const origins = new Set((Deno.env.get('LICENSE_ALLOWED_ORIGINS') ??
   'https://anti-markaryd.com,https://urumiosis.github.io').split(',').map(origin => origin.trim()));
@@ -55,12 +56,13 @@ Deno.serve(async (request) => {
       return respond(403, { error: 'Confirm your school email first' });
     }
     const db = createClient(url, serviceKey, clientOptions);
-    const eligibility = await db.rpc('student_email_allowed', { p_email: user.email });
+    const eligibility = await db.rpc('license_account_allowed', { p_user_id: user.id, p_email: user.email });
     if (eligibility.error) throw eligibility.error;
     if (eligibility.data !== true) {
       return respond(403, { error: 'Account not eligible' });
     }
-    const key = await crypto.subtle.importKey('spki', decodeBase64Url(publicKey.trim()), KEY_ALGORITHM, false, ['verify']);
+    const signingMaterial = publicKey.trim() || (await getOwnerSigningKeys(db)).publicKey;
+    const key = await crypto.subtle.importKey('spki', decodeBase64Url(signingMaterial), KEY_ALGORITHM, false, ['verify']);
     const input = await readRequest(request).catch(() => null);
     if (input?.action !== 'start' && input?.action !== 'finish') {
       return respond(400, { error: 'Invalid verification request' });
