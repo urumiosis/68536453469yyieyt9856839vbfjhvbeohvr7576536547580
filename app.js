@@ -260,10 +260,12 @@
       body: JSON.stringify(body)
     });
     if (response.status === 401) throw new Error('Logga in igen.');
-    if (response.status === 403) throw new Error('Certifikatet är ogiltigt eller har gått ut.');
+    if (response.status === 403) throw new Error('Ogiltigt certifikat.');
     if (response.status === 409) {
-      const { code } = await response.json();
-      if (code === 'device_mismatch') throw new Error('Certifikatet gäller en annan enhet eller Chrome-profil.');
+      const { code } = await response.json().catch(() => ({}));
+      if (code === 'device_mismatch') {
+        throw new Error('Certifikatet tillhör en annan Chrome-profil. Kontakta administratören om du har bytt profil.');
+      }
       throw new Error('Enheten kunde inte verifieras. Ladda upp certifikatet igen.');
     }
     if (!response.ok) throw new Error('Certifikatet kunde inte verifieras just nu. Försök igen.');
