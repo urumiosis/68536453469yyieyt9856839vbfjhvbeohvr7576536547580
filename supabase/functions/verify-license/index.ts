@@ -1,5 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
-import { decodeBase64Url, encodeBase64Url, DEVICE_ID, KEY_ALGORITHM, MAX_LICENSE_LENGTH, SIGN_ALGORITHM, verifyLicense } from '../_shared/license.mjs';
+import { decodeBase64Url, encodeBase64Url, DEVICE_ID, KEY_ALGORITHM, MAX_LICENSE_LENGTH, SIGN_ALGORITHM, verifyLicense, verifyCertificateSignature } from '../_shared/license.mjs';
 import { getOwnerSigningKeys } from '../_shared/signing-keys.mjs';
 
 const origins = new Set((Deno.env.get('LICENSE_ALLOWED_ORIGINS') ??
@@ -61,10 +61,12 @@ async function recordUploadSecurityEvent(db, accountId, eventType) {
  * the submitted public key only supports a low-confidence audit category;
  * it cannot authorize a device ban or establish real hardware identity.
  */
-async function claimsDeviceFromUnverifiedCertificate(certificate, deviceKey) {
+async function claimsDeviceFromUnverifiedCertificate(certificate, deviceKey, accountId) {
   try {
     if (typeof certificate !== 'string' || typeof deviceKey !== 'string') return false;
-    const claimed = JSON.parse(certificate)?.claims?.device;
+    const payload = JSON.parse(certificate);
+    if (payload?.claims?.sub !== accountId) return false;
+    const claimed = payload?.claims?.device;
     if (typeof claimed !== 'string' || !DEVICE_ID.test(claimed)) return false;
     const raw = decodeBase64Url(deviceKey);
     if (raw.length !== 65 || raw[0] !== 4) return false;
@@ -98,6 +100,14 @@ Deno.serve(async (request) => {
       return respond(403, { error: 'Confirm your school email first' });
     }
     const db = createClient(url, serviceKey, clientOptions);
+    // Site bans are durable DB records, not attacker-controlled certificate claims.
+    const accountBan = await db.from('certificate_account_bans')
+      .select('user_id').eq('user_id', user.id).maybeSingle();
+    if (accountBan.error) throw accountBan.error;
+    if (accountBan.data) return respond(403, {
+      code: 'account_permanently_banned', error: 'Account permanently banned'
+    });
+
     const eligibility = await db.rpc('license_account_allowed', { p_user_id: user.id, p_email: user.email });
     if (eligibility.error) throw eligibility.error;
     if (eligibility.data !== true) {
@@ -109,18 +119,9 @@ Deno.serve(async (request) => {
     if (input?.action !== 'start' && input?.action !== 'finish') {
       return respond(400, { error: 'Invalid verification request' });
     }
-    // Verify the owner's signature and matching authenticated account FIRST.
-    // Never trust a claimed device ID to ban or delete a user before this check.
+    // A certificate is never authority to ban a different account:
+    // verifyLicense binds its signed subject to the authenticated uploader.
     const claims = await verifyLicense(input.certificate, key, user.id);
-    if (!claims) {
-      const claimedDevice = await claimsDeviceFromUnverifiedCertificate(
-        input.certificate, input.deviceKey
-      );
-      await recordUploadSecurityEvent(db, user.id, claimedDevice
-        ? 'untrusted_matching_device_claim'
-        : 'invalid_certificate');
-      return respond(403, { code: 'invalid_certificate', error: 'Invalid certificate' });
-    }
 
     let deviceKey: CryptoKey;
     let deviceId: string;
@@ -133,15 +134,98 @@ Deno.serve(async (request) => {
       deviceId = encodeBase64Url(new Uint8Array(await crypto.subtle.digest('SHA-256', raw)));
       deviceKey = await crypto.subtle.importKey('raw', raw, KEY_ALGORITHM, false, ['verify']);
     } catch {
-      return respond(400, { error: 'Invalid device key' });
+      return respond(403, { code: 'invalid_certificate', error: 'Invalid certificate' });
+    }
+
+    const deviceBan = await db.from('certificate_device_bans')
+      .select('device_id').eq('device_id', deviceId).maybeSingle();
+    if (deviceBan.error) throw deviceBan.error;
+    if (deviceBan.data) return respond(403, {
+      code: 'device_permanently_banned', error: 'You have been permanently banned'
+    });
+
+    if (!claims) {
+      // IMPORTANT: a valid but expired signature is NOT a forged signature.
+      // Likewise, a signed file belonging to another account is not
+      // authorization to ban its owner or this uploader.
+      const authenticClaims = await verifyCertificateSignature(input.certificate, key);
+      const sameClaimedDevice = !authenticClaims &&
+        await claimsDeviceFromUnverifiedCertificate(
+          input.certificate, input.deviceKey, user.id
+        );
+
+      if (sameClaimedDevice) {
+        const registered = await db.from('license_devices')
+          .select('device_id,activated_at').eq('user_id', user.id).maybeSingle();
+        if (registered.error) throw registered.error;
+        if (registered.data?.activated_at && registered.data.device_id === deviceId) {
+          const current = { account_id: user.id, requested_device_id: deviceId };
+          if (input.action === 'start') {
+            // A matching unsigned claim never bans anyone. First prove
+            // possession of the registered, non-exportable browser key.
+            const challenge = encodeBase64Url(crypto.getRandomValues(new Uint8Array(32)));
+            const started = await db.rpc('start_license_device_challenge',
+              { ...current, nonce: challenge });
+            if (started.error) throw started.error;
+            if (!started.data) return respond(403, {
+              code: 'invalid_certificate', error: 'Invalid certificate'
+            });
+            await recordUploadSecurityEvent(db, user.id, 'untrusted_matching_device_claim');
+            return respond(200, { challenge });
+          }
+
+          const { challenge, signature } = input;
+          if (typeof challenge !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(challenge) ||
+              typeof signature !== 'string' || !/^[A-Za-z0-9_-]{86}$/.test(signature)) {
+            return respond(403, { code: 'invalid_certificate', error: 'Invalid certificate' });
+          }
+          const proof = encoder.encode(`anti-markaryd-device-v1\n${user.id}\n${challenge}\n${input.certificate.trim()}`);
+          let proven = false;
+          try {
+            proven = await crypto.subtle.verify(
+              SIGN_ALGORITHM, deviceKey, decodeBase64Url(signature), proof
+            );
+          } catch {
+            return respond(403, { code: 'invalid_certificate', error: 'Invalid certificate' });
+          }
+          if (!proven) {
+            await recordUploadSecurityEvent(db, user.id, 'invalid_device_proof');
+            return respond(403, { code: 'invalid_certificate', error: 'Invalid certificate' });
+          }
+          const consumed = await db.rpc('finish_license_device_challenge',
+            { ...current, nonce: challenge });
+          if (consumed.error) throw consumed.error;
+          if (!consumed.data) return respond(403, {
+            code: 'invalid_certificate', error: 'Invalid certificate'
+          });
+
+          const banned = await db.from('certificate_device_bans').upsert({
+            device_id: deviceId, account_id: user.id,
+            reason: 'bad_signature_on_proven_registered_device'
+          }, { onConflict: 'device_id', ignoreDuplicates: true });
+          if (banned.error) throw banned.error;
+          return respond(403, {
+            code: 'device_permanently_banned', error: 'You have been permanently banned'
+          });
+        }
+      }
+
+      await recordUploadSecurityEvent(db, user.id, sameClaimedDevice
+        ? 'untrusted_matching_device_claim' : 'invalid_certificate');
+      return respond(403, { code: 'invalid_certificate', error: 'Invalid certificate' });
     }
 
     if (claims.device !== deviceId) {
-      // A valid signature proves the certificate is authentic, NOT that it
-      // was stolen. A changed browser profile is also a legitimate explanation.
-      // Log the authenticated uploader for manual review; do not ban anybody.
+      // Validly signed, nonexpired, CURRENT-ACCOUNT certificate: the
+      // requested rule revokes the current account's site access.
       await recordUploadSecurityEvent(db, user.id, 'signed_device_mismatch');
-      return respond(409, { code: 'device_mismatch' });
+      const banned = await db.from('certificate_account_bans').upsert({
+        user_id: user.id, reason: 'signed_device_mismatch'
+      }, { onConflict: 'user_id', ignoreDuplicates: true });
+      if (banned.error) throw banned.error;
+      return respond(403, {
+        code: 'account_permanently_banned', error: 'Account permanently banned'
+      });
     }
 
     const device = { account_id: user.id, requested_device_id: deviceId };
