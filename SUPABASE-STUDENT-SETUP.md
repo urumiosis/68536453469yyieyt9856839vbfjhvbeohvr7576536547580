@@ -78,11 +78,26 @@ In Supabase Dashboard, you can:
   `LICENSE_VALID_DAYS` accepts 1–365.
 - Inspect certificate requests: **Edge Functions → issue-license /
   verify-license → Logs**.
+- Review automatically blocked site accounts:
+  **SQL Editor → `public.certificate_account_bans`**.
+- Review permanently blocked registered browser keys:
+  **SQL Editor → `public.certificate_device_bans`**.
+  These are browser-profile identities, not physical Chromebook serial numbers.
 - Suspend a user: **Authentication → Users**.
 - Lost/expired certificate or new browser profile: verify account ownership
   and **explicitly reset** the issued binding in `license_devices` as
   described in [LICENSE-SETUP.md](LICENSE-SETUP.md). Never automatically
   issue a replacement just because someone signed in.
+
+**Important certificate policy:** if a student uploads a still-valid,
+owner-signed certificate from a different browser profile, the website
+permanently blocks that logged-in account. If the owner signature is invalid
+but the uploaded device claim matches the registered browser key AND the
+user proves possession of that key cryptographically, that key is permanently
+blocked. Wrong signature plus wrong device is only rejected as invalid.
+**Do not upload an old certificate after changing browser profiles**;
+contact the administrator to reset the registered device first. Resetting
+does not undo an existing account ban.
 
 **Never** expose a Supabase service-role key or database signing key in
 GitHub code or to students.
