@@ -3,87 +3,112 @@ import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import {
-  KEY_ALGORITHM, SIGN_ALGORITHM, encodeBase64Url, verifyLicense, VERSION
+  KEY_ALGORITHM, SIGN_ALGORITHM, encodeBase64Url, verifyLicense,
+  verifyCertificateSignature, VERSION
 } from '../supabase/functions/_shared/license.mjs';
 
 globalThis.crypto ??= webcrypto;
 
 const server = readFileSync(new URL('../supabase/functions/verify-license/index.ts', import.meta.url), 'utf8');
+const issuer = readFileSync(new URL('../supabase/functions/issue-license/index.ts', import.meta.url), 'utf8');
 const ui = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
-const migration = readFileSync(new URL('../supabase/migrations/202611150003_certificate_upload_security_events.sql', import.meta.url), 'utf8');
+const migrations = readFileSync(new URL('../supabase/migrations/202611150004_certificate_enforcement_bans.sql', import.meta.url), 'utf8');
 
 const accountId = '11111111-2222-4333-8444-555555555555';
-const alphabetDeviceId = 'A'.repeat(43);
-const anotherDeviceId = 'B'.repeat(43);
+const otherId = '99999999-2222-4333-8444-555555555555';
+const firstDevice = 'A'.repeat(43);
+const secondDevice = 'B'.repeat(43);
 
-async function signedCertificate(claimedDevice) {
-  const signer = await webcrypto.subtle.generateKey(KEY_ALGORITHM, true, ['sign', 'verify']);
+async function makeCertificate(device, { sub = accountId, expired = false } = {}) {
+  const pair = await webcrypto.subtle.generateKey(KEY_ALGORITHM, true, ['sign', 'verify']);
   const now = Math.floor(Date.now() / 1000);
   const claims = {
-    aud: 'anti-markaryd.com',
-    sub: accountId,
-    device: claimedDevice,
-    iat: now - 30,
-    exp: now + 3600,
-    license: 'Original license terms.'
+    aud: 'anti-markaryd.com', sub, device,
+    iat: now - 7200, exp: expired ? now - 1 : now + 3600,
+    license: 'Signed license terms.'
   };
   const payload = VERSION + '.' + encodeBase64Url(new TextEncoder().encode(JSON.stringify(claims)));
   const signature = encodeBase64Url(new Uint8Array(await webcrypto.subtle.sign(
-    SIGN_ALGORITHM, signer.privateKey, new TextEncoder().encode(payload)
+    SIGN_ALGORITHM, pair.privateKey, new TextEncoder().encode(payload)
   )));
-  return { token: JSON.stringify({ format: VERSION, claims, signature }), key: signer.publicKey };
+  return { token: JSON.stringify({ format: VERSION, claims, signature }), key: pair.publicKey };
 }
 
-test('valid owner signature and matching claimed device succeeds', async () => {
-  const { token, key } = await signedCertificate(alphabetDeviceId);
-  const verified = await verifyLicense(token, key, accountId);
-  assert.equal(verified.device, alphabetDeviceId);
+test('signed certificate and registered browser matching can verify', async () => {
+  const { token, key } = await makeCertificate(firstDevice);
+  const claims = await verifyLicense(token, key, accountId);
+  assert.equal(claims.device, firstDevice);
+  assert.ok(await verifyCertificateSignature(token, key));
 });
 
-test('valid owner signature with different device is authentic but not authorized for this profile', async () => {
-  const { token, key } = await signedCertificate(anotherDeviceId);
-  const verified = await verifyLicense(token, key, accountId);
-  assert.equal(verified.device, anotherDeviceId);
-  assert.notEqual(verified.device, alphabetDeviceId);
+test('authentic, current-user, different-profile certificate is distinguishable', async () => {
+  const { token, key } = await makeCertificate(firstDevice);
+  const claims = await verifyLicense(token, key, accountId);
+  assert.equal(claims.sub, accountId);
+  assert.notEqual(claims.device, secondDevice);
+  assert.match(server, /if \(claims.device !== deviceId\) \{/);
+  assert.match(server, /certificate_account_bans'\)\.upsert\(/);
+  assert.match(server, /code: 'account_permanently_banned'/);
 });
 
-test('an invalid signature plus matching claimed device never becomes trusted', async () => {
-  const { token, key } = await signedCertificate(alphabetDeviceId);
-  const forged = JSON.parse(token);
-  forged.claims.license = 'Modified untrusted license terms.';
-  assert.equal(forged.claims.device, alphabetDeviceId);
-  assert.equal(await verifyLicense(JSON.stringify(forged), key, accountId), null);
+test('invalid issuer signature and matching device is NOT enough without device proof', async () => {
+  const { token, key } = await makeCertificate(firstDevice);
+  const changed = JSON.parse(token);
+  changed.claims.license = 'Tampered content';
+  const fake = JSON.stringify(changed);
+  assert.equal(await verifyLicense(fake, key, accountId), null);
+  assert.equal(await verifyCertificateSignature(fake, key), null);
+
+  const challengeIndex = server.indexOf("start_license_device_challenge");
+  const proofIndex = server.indexOf("if (!proven)");
+  const consumeIndex = server.indexOf("finish_license_device_challenge");
+  const banIndex = server.indexOf("certificate_device_bans').upsert");
+  assert.ok(challengeIndex >= 0 && proofIndex > challengeIndex &&
+    consumeIndex > proofIndex && banIndex > consumeIndex,
+    'device is only banned after signing and consuming the challenge');
+  assert.match(server, /registered\.data\.device_id === deviceId/);
+  assert.match(server, /code: 'device_permanently_banned'/);
 });
 
-test('invalid signature and wrong device is rejected', async () => {
-  const { token, key } = await signedCertificate(anotherDeviceId);
-  const forged = JSON.parse(token);
-  forged.claims.license = 'Modified untrusted license terms.';
-  assert.equal(await verifyLicense(JSON.stringify(forged), key, accountId), null);
+test('invalid signature and wrong device stays invalid with no account ban', async () => {
+  const { token, key } = await makeCertificate(firstDevice);
+  const changed = JSON.parse(token);
+  changed.claims.license = 'Tampered content';
+  assert.equal(await verifyCertificateSignature(JSON.stringify(changed), key), null);
+  assert.notEqual(changed.claims.device, secondDevice);
+  assert.match(server, /return respond\(403, \{ code: 'invalid_certificate', error: 'Invalid certificate' \}\)/);
 });
 
-test('verification rejects invalid signature before trusting device and attributes events only to uploader', () => {
-  const checkSignature = server.indexOf('const claims = await verifyLicense(');
-  const rejectSignature = server.indexOf("if (!claims) {", checkSignature);
-  const compareDevice = server.indexOf('if (claims.device !== deviceId)');
-  assert.ok(checkSignature >= 0 && rejectSignature > checkSignature && compareDevice > rejectSignature);
-  assert.match(server, /recordUploadSecurityEvent\(db, user\.id, claimedDevice/);
-  assert.match(server, /recordUploadSecurityEvent\(db, user\.id, 'signed_device_mismatch'\)/);
-  assert.match(server, /recordUploadSecurityEvent\(db, user\.id, 'invalid_device_proof'\)/);
-  assert.match(server, /error: 'Invalid certificate'/);
-  assert.doesNotMatch(server, /auth\.admin\.deleteUser|auth\.admin\.updateUserById|ban_duration|banned_until/);
+test('authentic but expired file never qualifies as a FORGED signature', async () => {
+  const { token, key } = await makeCertificate(firstDevice, { expired: true });
+  assert.equal(await verifyLicense(token, key, accountId), null);
+  assert.ok(await verifyCertificateSignature(token, key));
+  assert.match(server, /const authenticClaims = await verifyCertificateSignature/);
+  assert.match(server, /const sameClaimedDevice = !authenticClaims &&/);
 });
 
-test('security alerts are service-only and do not automatically suspend users', () => {
-  assert.match(migration, /enable row level security/);
-  assert.match(migration, /revoke all on table public\.certificate_security_events from public, anon, authenticated/);
-  assert.match(migration, /grant select, insert, update on table public\.certificate_security_events to service_role/);
-  assert.match(migration, /primary key \(account_id, event_type, hour_bucket\)/);
-  assert.doesNotMatch(migration, /delete from auth\.users|update auth\.users/);
+test('authentic certificate for a different account cannot ban its subject', async () => {
+  const { token, key } = await makeCertificate(firstDevice, { sub: otherId });
+  assert.ok(await verifyCertificateSignature(token, key));
+  assert.equal(await verifyLicense(token, key, accountId), null);
+  assert.match(server, /payload\?\.claims\?\.sub !== accountId/);
+  assert.match(server, /verifyLicense\(input.certificate, key, user.id\)/);
 });
 
-test('frontend displays straightforward errors, not unverifiable permanent-ban claims', () => {
+test('site bans persist server-side and cannot be written by browsers', () => {
+  for (const name of ['certificate_account_bans', 'certificate_device_bans']) {
+    assert.match(migrations, new RegExp('create table if not exists public\\.' + name));
+    assert.match(migrations, new RegExp('alter table public\\.' + name + ' enable row level security'));
+    assert.match(migrations, new RegExp('revoke all on table public\\.' + name));
+    assert.match(migrations, new RegExp('grant select, insert on table public\\.' + name + ' to service_role'));
+    assert.match(issuer, new RegExp("from\\('" + name + "'\\)"));
+    assert.match(server, new RegExp("from\\('" + name + "'\\)"));
+  }
+  assert.doesNotMatch(server, /auth\.admin\.deleteUser/);
+});
+
+test('frontend uses explicit permanent-ban responses for confirmed server bans', () => {
+  assert.match(ui, /Du har blivit permanent avstängd från webbplatsen/);
+  assert.match(ui, /Kontot har blivit permanent avstängt/);
   assert.match(ui, /Ogiltigt certifikat/);
-  assert.match(ui, /annan Chrome-profil/);
-  assert.doesNotMatch(ui, /permanent bann|permanent avstängd|permanently banned/i);
 });
