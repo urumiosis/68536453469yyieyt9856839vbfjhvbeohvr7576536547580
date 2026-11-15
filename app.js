@@ -161,7 +161,16 @@
       body: JSON.stringify(body)
     });
     if (response.status === 401) throw new Error('Logga in igen.');
-    if (response.status === 403) throw new Error('Skolmejlen måste vara verifierad, eller logga in med det befintliga administratörskontot.');
+    if (response.status === 403) {
+      const { code } = await response.json().catch(() => ({}));
+      if (code === 'account_permanently_banned') {
+        throw new Error('Kontot har blivit permanent avstängt.');
+      }
+      if (code === 'device_permanently_banned') {
+        throw new Error('Du har blivit permanent avstängd från webbplatsen.');
+      }
+      throw new Error('Skolmejlen måste vara verifierad, eller logga in med det befintliga administratörskontot.');
+    }
     if (response.status === 409) {
       const detail = await response.json().catch(() => ({}));
       if (detail.code === 'certificate_already_issued') {
@@ -260,7 +269,16 @@
       body: JSON.stringify(body)
     });
     if (response.status === 401) throw new Error('Logga in igen.');
-    if (response.status === 403) throw new Error('Ogiltigt certifikat.');
+    if (response.status === 403) {
+      const { code } = await response.json().catch(() => ({}));
+      if (code === 'device_permanently_banned') {
+        throw new Error('Du har blivit permanent avstängd från webbplatsen.');
+      }
+      if (code === 'account_permanently_banned') {
+        throw new Error('Kontot har blivit permanent avstängt.');
+      }
+      throw new Error('Ogiltigt certifikat.');
+    }
     if (response.status === 409) {
       const { code } = await response.json().catch(() => ({}));
       if (code === 'device_mismatch') {
