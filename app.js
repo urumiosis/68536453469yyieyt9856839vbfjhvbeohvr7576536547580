@@ -27,7 +27,7 @@
   const deviceIdInput = document.getElementById('device-id');
   const deviceIdStatus = document.getElementById('device-id-status');
   const lockedSite = document.getElementById('locked-site');
-  const autoCertificate = document.getElementById('auto-certificate');
+  const autoCertificate = document.getElementById('auto-certificate-panel');
   const autoCertificateStatus = document.getElementById('auto-certificate-status');
   const retryCertificate = document.getElementById('retry-certificate');
   const downloadCertificate = document.getElementById('download-certificate');
@@ -192,7 +192,7 @@
       body: JSON.stringify(body)
     });
     if (response.status === 401) throw new Error('Logga in igen.');
-    if (response.status === 403) throw new Error('Ditt studentkonto måste vara godkänt och skolmejlen verifierad.');
+    if (response.status === 403) throw new Error('Skolmejlen måste vara verifierad, eller logga in med det befintliga administratörskontot.');
     if (response.status === 409) throw new Error('Kontot är redan kopplat till en annan Chrome-profil. Kontakta administratören.');
     if (!response.ok) throw new Error('Certifikattjänsten är inte klar eller är tillfälligt otillgänglig.');
     return response.json();
@@ -320,8 +320,8 @@
 
       if (!app.content || !Array.isArray(app.games)) throw new Error('Appens innehåll saknas.');
       const initPrivateApp = new Function(app.code + '\n; return initPrivateApp;')();
+      await initPrivateApp(session.user, app);
       privateAppStarted = true;
-      initPrivateApp(session.user, app);
       expireAppAt(receivedAt + app.expiresInMs);
     } catch (error) {
       if (loginGeneration !== generation) return;
@@ -344,60 +344,6 @@
       return platform === 'Chrome OS' || platform === 'ChromeOS';
     }
     return /\bCrOS\b/.test(navigator.userAgent || '');
-  }
-
-  async function issueAutomaticCertificate() {
-    if (!activeUserId || privateAppStarted) return;
-    const generation = loginGeneration;
-    autoCertificateBtn.disabled = true;
-    certStatus.hidden = false;
-    certStatus.className = 'cert-status';
-    certStatus.textContent = 'Skapar ditt certifikat…';
-    try {
-      const { data, error } = await supabase.auth.getSession();
-      const session = data?.session;
-      if (error || !session || session.user.id !== activeUserId) throw new Error('Logga in igen.');
-      const device = await loadDevice(activeUserId);
-      const response = await fetch(SUPABASE_URL + '/functions/v1/issue-student-certificate', {
-        method: 'POST',
-        headers: {
-          apikey: SUPABASE_KEY,
-          Authorization: 'Bearer ' + session.access_token,
-          'Content-Type': 'application/json'
-        },
-        cache: 'no-store',
-        body: JSON.stringify({ deviceKey: device.publicKey })
-      });
-      if (!response.ok) {
-        throw new Error(response.status === 403
-          ? 'Kontot är inte verifierat eller godkänt för studentåtkomst.'
-          : response.status === 409
-            ? 'Kontot är redan knutet till en annan Chrome-profil.'
-            : 'Certifikatet kunde inte skapas just nu.');
-      }
-      const { certificate } = await response.json();
-      if (generation !== loginGeneration) return;
-      if (typeof certificate !== 'string' || new TextEncoder().encode(certificate).byteLength > MAX_CERTIFICATE_BYTES) {
-        throw new Error('Servern skickade ett ogiltigt certifikat.');
-      }
-      const blob = new Blob([certificate], { type: 'application/json;charset=utf-8' });
-      const address = URL.createObjectURL(blob);
-      const download = document.createElement('a');
-      download.href = address;
-      download.download = 'student.certificate';
-      document.body.appendChild(download);
-      download.click();
-      download.remove();
-      setTimeout(() => URL.revokeObjectURL(address), 10_000);
-      await verifyUploadedCertificate(certificate);
-    } catch (error) {
-      if (generation === loginGeneration) {
-        certStatus.className = 'cert-status bad';
-        certStatus.textContent = error.message || 'Certifikatet kunde inte skapas.';
-      }
-    } finally {
-      if (generation === loginGeneration) autoCertificateBtn.disabled = privateAppStarted;
-    }
   }
 
   function init() {
@@ -439,7 +385,7 @@
         const email = document.getElementById('signup-email').value.trim().toLowerCase();
         const password = document.getElementById('signup-password').value;
         try {
-          // UX check only: Supabase's Before User Created hook enforces the exact domain and roster.
+          // UX check only: Supabase's Before User Created hook enforces the exact school domain.
           if (!/^e[0-9]{4}@edu\.markaryd\.se$/i.test(email)) {
             throw new Error('Använd din skolmejl: E + fyra siffror @edu.markaryd.se.');
           }
@@ -523,7 +469,9 @@
     }
 
     copyDeviceIdBtn.addEventListener('click', copyDeviceId);
-    autoCertificateBtn.addEventListener('click', issueAutomaticCertificate);
+    autoCertificateBtn.addEventListener('click', () => {
+      if (activeUserId) void issueStudentCertificate(activeUserId, loginGeneration);
+    });
     certFileInput.addEventListener('change', () => verifyUploadedCertificate());
 
     supabase.auth.onAuthStateChange((event, session) => {
