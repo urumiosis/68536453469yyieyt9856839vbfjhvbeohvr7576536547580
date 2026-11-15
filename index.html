@@ -38,45 +38,30 @@
     </div>
   </div>
 
-  <!-- LOGIN SCREEN -->
+  <!-- Sign-in is the landing page; registration lives in signup.html. -->
   <div id="login-screen" class="screen active">
-    <div class="login-container">
-      <div class="logo-glitch">
-        <h1 data-text="ANTI MARKARYD">Anti Markaryd</h1>
-      </div>
-
-      <form id="login-form" class="login-form">
-        <div class="input-group">
-          <label for="email">E-post</label>
-          <input type="email" id="email" name="email" placeholder="din@email.se" required autocomplete="username">
-        </div>
-        <div class="input-group">
-          <label for="password">Lösenord</label>
-          <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
-        </div>
-        <button type="submit" class="btn-primary" id="login-btn">
-          <span>LOGGA IN</span>
-        </button>
-        <p id="login-error" class="error-msg" hidden></p>
-      </form>
-
-      <section class="signup-panel" aria-labelledby="signup-heading">
-        <h2 id="signup-heading">Registrera studentkonto</h2>
-        <p class="small">Alla e0000–e9999@edu.markaryd.se kan registrera sig. Bekräfta din e-postadress först.</p>
-        <form id="signup-form" class="login-form">
+    <main class="auth-shell">
+      <section class="auth-card" aria-labelledby="login-title">
+        <div class="auth-brand"><span class="auth-brand-icon" aria-hidden="true">✳</span> ANTI MARKARYD</div>
+        <p class="auth-eyebrow">VÄLKOMMEN TILLBAKA</p>
+        <h1 class="auth-title" id="login-title">Logga in.</h1>
+        <p class="auth-subtitle">Fortsätt till ditt konto.</p>
+        <form id="login-form" class="login-form">
           <div class="input-group">
-            <label for="signup-email">Skolans e-postadress</label>
-            <input id="signup-email" type="email" autocomplete="email" placeholder="e1234@edu.markaryd.se" required>
+            <label for="email">E-postadress</label>
+            <input type="email" id="email" name="email" placeholder="Din e-postadress" required autocomplete="username">
           </div>
           <div class="input-group">
-            <label for="signup-password">Välj lösenord</label>
-            <input id="signup-password" type="password" autocomplete="new-password" minlength="12" required>
+            <label for="password">Lösenord</label>
+            <input type="password" id="password" name="password" placeholder="Ditt lösenord" required autocomplete="current-password">
           </div>
-          <button type="submit" class="btn-primary" id="signup-btn"><span>SKAPA KONTO</span></button>
-          <p id="signup-feedback" class="cert-status" role="status" hidden></p>
+          <button type="submit" class="btn-primary" id="login-btn"><span>Logga in</span><span aria-hidden="true">↗</span></button>
+          <p id="login-error" class="error-msg" role="alert" hidden></p>
         </form>
+        <p class="auth-switch">Inget konto? <a href="./signup.html">Skapa konto</a></p>
       </section>
-    </div>
+      <p class="auth-footer">En plats för ditt nästa äventyr.</p>
+    </main>
   </div>
 
   <!-- DASHBOARD / GAMES SCREEN -->
@@ -99,32 +84,29 @@
       </section>
 
       <section class="cert-box" id="cert-section" aria-labelledby="cert-heading">
-        <div class="cert-alert-icon" aria-hidden="true"><span>!</span></div>
-        <p class="cert-eyebrow">SÄKERHETSKONTROLL</p>
-        <h2 id="cert-heading" class="cert-heading">CERTIFIKATVERIFIERING KRÄVS</h2>
-        <p class="cert-hint">Ladda upp det signerade certifikatet för den här webbläsaren.</p>
-        <label class="cert-upload">
+        <div class="cert-topline"><span class="cert-orb" aria-hidden="true">✧</span><span class="cert-eyebrow">PERSONLIG ÅTKOMST</span></div>
+        <h2 id="cert-heading" class="cert-heading">Ditt certifikat.</h2>
+        <p class="cert-hint">Ladda upp ditt sparade certifikat för att fortsätta.</p>
+        <label class="cert-upload" for="cert-file">
           <input type="file" id="cert-file" accept=".certificate">
-          <span class="btn-play" id="cert-upload-label">Ladda upp</span>
+          <span class="btn-play" id="cert-upload-label">Välj certifikat <span aria-hidden="true">↑</span></span>
         </label>
-        <div class="cert-device">
-          <button type="button" class="btn-ghost" id="copy-device-id">Kopiera enhets-ID</button>
-          <button type="button" class="btn-ghost" id="auto-certificate">Skapa mitt certifikat</button>
-          <input id="device-id" type="text" aria-label="Enhets-ID" readonly hidden>
-          <p id="device-id-status" role="status" hidden></p>
-        </div>
-        <section id="auto-certificate-panel" class="auto-certificate" hidden>
+        <p id="cert-status" class="cert-status" role="status" hidden></p>
+        <section id="first-time-certificate" class="first-time-certificate" hidden aria-label="Första certifikatet">
+          <p class="first-time-label">FÖRSTA GÅNGEN?</p>
+          <p>Skapa ditt certifikat en gång och spara filen. Du använder samma fil vid varje inloggning.</p>
+          <button id="issue-first-certificate" type="button" class="btn-ghost">Skapa mitt certifikat</button>
+        </section>
+        <section id="certificate-issuance" class="certificate-issuance" hidden>
           <p id="auto-certificate-status" role="status"></p>
-          <button id="retry-certificate" type="button" class="btn-ghost" hidden>Försök igen</button>
-          <a id="download-certificate" class="btn-play cert-download-link" download="student.certificate" hidden>Ladda ned mitt certifikat</a>
+          <a id="download-certificate" class="btn-play cert-download-link" download="student.certificate" hidden>Ladda ned certifikat ↓</a>
           <details id="read-certificate" hidden>
-            <summary>Visa mitt certifikat och licensen</summary>
+            <summary>Visa certifikat och licens</summary>
             <pre id="certificate-text" class="cert-example"></pre>
           </details>
         </section>
-        <p id="cert-status" class="cert-status" role="status" hidden></p>
         <details id="certificate-preview" hidden>
-          <summary>Visa certifikat och licens</summary>
+          <summary>Visa uppladdat certifikat</summary>
           <pre id="certificate-preview-text" class="cert-example"></pre>
         </details>
       </section>
@@ -157,7 +139,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=am6"></script>
+  <script src="app.js?v=am7"></script>
 
 </body>
 </html>

@@ -50,8 +50,10 @@ test('server-owned signing key is generated once and reused', async () => {
 test('GitHub Pages certificate UI uses a single supported endpoint and unique IDs', () => {
   const html = readFileSync('index.html', 'utf8');
   const script = readFileSync('app.js', 'utf8');
-  assert.equal((html.match(/id="auto-certificate"/g) || []).length, 1);
-  assert.equal((html.match(/id="auto-certificate-panel"/g) || []).length, 1);
+  assert.equal((html.match(/id="issue-first-certificate"/g) || []).length, 1);
+  assert.equal((html.match(/id="first-time-certificate"/g) || []).length, 1);
+  assert.equal((html.match(/id="certificate-issuance"/g) || []).length, 1);
+  assert.doesNotMatch(html, /id="copy-device-id"/);
   assert.match(script, /\/functions\/v1\/issue-license/);
   assert.match(script, /\/functions\/v1\/verify-license/);
   assert.doesNotMatch(script, /\/functions\/v1\/issue-student-certificate/);

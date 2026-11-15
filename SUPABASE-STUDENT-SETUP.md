@@ -54,11 +54,13 @@ Your Supabase project already has **one verified admin account**.
 Use that existing email and password; do not create a new E-number account
 for administration.
 
-On a Chromebook, open https://anti-markaryd.com and sign in with the
-existing administrator account. The website automatically requests a signed
-certificate bound to that Chrome browser profile. Download the
-`student.certificate` file and select **Ladda upp** to unlock the app.
-It is a certificate format name, not proof your admin must be a student.
+After switching GitHub Pages from the maintenance branch to `main`, open
+https://anti-markaryd.com on a Chromebook and sign in with the existing
+administrator account. **For the first login only**, click
+**Skapa mitt certifikat**, download `student.certificate` and save it
+securely. Select **Välj certifikat** to upload it. At every later login,
+upload the same file; no new certificate is made. Administrators are not
+required to have a student email address.
 
 Once unlocked, **Ägarpanel** links to the actual Supabase dashboard.
 On a different computer, you can manage the Supabase dashboard directly
@@ -76,9 +78,11 @@ In Supabase Dashboard, you can:
   `LICENSE_VALID_DAYS` accepts 1–365.
 - Inspect certificate requests: **Edge Functions → issue-license /
   verify-license → Logs**.
-- Suspend a user: **Authentication → Users**. For device replacement,
-  revoke the old binding in `license_devices` via administrator tools
-  before they request a new certificate.
+- Suspend a user: **Authentication → Users**.
+- Lost/expired certificate or new browser profile: verify account ownership
+  and **explicitly reset** the issued binding in `license_devices` as
+  described in [LICENSE-SETUP.md](LICENSE-SETUP.md). Never automatically
+  issue a replacement just because someone signed in.
 
 **Never** expose a Supabase service-role key or database signing key in
 GitHub code or to students.
@@ -96,12 +100,15 @@ Then in **Authentication → General Configuration**, enable
 **Allow new users to sign up**, leaving anonymous sign-in disabled.
 
 After that, a student can:
-1. Open the website on a Chromebook.
-2. Create an account with any matching school email and password.
-3. Click the email verification link.
-4. Sign in with the confirmed account.
-5. Download their automatically created `.certificate`, then upload it
-   through **Ladda upp** and access the application.
+1. Open **Skapa konto** (a separate `signup.html` page).
+2. Register with their school email and password.
+3. Click the confirmation link in their inbox.
+4. Sign in from `index.html` on a Chromebook.
+5. **First time only:** choose **Skapa mitt certifikat**, download the
+   `.certificate` file and keep it.
+6. Select **Välj certifikat** to unlock the site.
+7. **Every later login:** upload the *existing* file. There is no
+   automatic reissuance and no device-ID copy button.
 
 If a certificate can't be generated, inspect the **issue-license logs**.
 The server requires a confirmed eligible email, browser-profile key proof,
@@ -123,7 +130,8 @@ For strict revocation, suspend the user and manage their active sessions.
 ### Test coverage and limitations
 
 The PR GitHub Actions suite covers ECDSA certificate tamper resistance,
-server-managed signing-key generation/reuse, and public page integration.
+one-time issuance checks, server-managed signing-key generation/reuse,
+and the separate login and signup pages.
 It does not simulate the real confirmation email or a student's Chromebook;
 those two live checks require actual email and browser access.
 

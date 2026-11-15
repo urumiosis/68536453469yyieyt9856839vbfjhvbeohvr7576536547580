@@ -1,4 +1,4 @@
-// Automatic owner-signed issuance after verified student email + device-key proof.
+// One-time owner-signed issuance after verified email and device-key proof.
 // A PKCS#8 signing key is either in an owner-provided Edge secret or in a service-role-only Supabase table.
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import {
@@ -75,8 +75,18 @@ Deno.serve(async request => {
     }
 
     const input = await readBody(request).catch(() => null);
-    if (input?.action !== 'start' && input?.action !== 'finish') {
+    if (input?.action !== 'status' && input?.action !== 'start' && input?.action !== 'finish') {
       return respond(400, { error: 'Invalid enrollment request' });
+    }
+
+    // Status is read-only. Existing certificates may be uploaded on every login,
+    // but the account may not mint another certificate without owner approval.
+    const existing = await db.from('license_devices')
+      .select('activated_at').eq('user_id', user.id).maybeSingle();
+    if (existing.error) throw existing.error;
+    if (input.action === 'status') return respond(200, { issued: !!existing.data?.activated_at });
+    if (existing.data?.activated_at) {
+      return respond(409, { code: 'certificate_already_issued' });
     }
 
     let deviceId: string;
@@ -93,7 +103,7 @@ Deno.serve(async request => {
     }
 
     // Use the owner's explicit secret key when configured, otherwise generate
-    // and store a service-role-only signing key at the first eligible login.
+    // and store a service-role-only signing key at first explicit issuance.
     const signingMaterial = privateKeyBytes || (await getOwnerSigningKeys(db, true)).privateKey;
     const signer = await crypto.subtle.importKey(
       'pkcs8', decodeBase64Url(signingMaterial), KEY_ALGORITHM, false, ['sign']
@@ -121,10 +131,6 @@ Deno.serve(async request => {
       return respond(400, { error: 'Invalid enrollment signature' });
     }
     if (!valid) return respond(403, { error: 'Invalid enrollment signature' });
-    const consumed = await db.rpc('finish_license_device_challenge', { ...device, nonce: challenge });
-    if (consumed.error) throw consumed.error;
-    if (!consumed.data) return respond(409, { error: 'Expired or reused challenge' });
-
     const now = Math.floor(Date.now() / 1000);
     const claims = {
       aud: AUDIENCE, sub: user.id, device: deviceId,
@@ -139,6 +145,20 @@ Deno.serve(async request => {
     }, null, 2) + '\n';
     if (encoder.encode(certificate).byteLength > MAX_LICENSE_LENGTH) {
       throw new Error('Certificate too large');
+    }
+
+    // Atomic compare-and-set; even two simultaneous requests cannot issue twice.
+    const consumed = await db.rpc('finish_license_initial_issuance', {
+      ...device, nonce: challenge
+    });
+    if (consumed.error) throw consumed.error;
+    if (!consumed.data) {
+      const latest = await db.from('license_devices').select('activated_at')
+        .eq('user_id', user.id).maybeSingle();
+      if (latest.error) throw latest.error;
+      return latest.data?.activated_at
+        ? respond(409, { code: 'certificate_already_issued' })
+        : respond(409, { error: 'Expired or reused challenge' });
     }
     return respond(200, { certificate });
   } catch (error) {
