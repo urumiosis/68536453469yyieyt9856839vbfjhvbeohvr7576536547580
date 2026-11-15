@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#141210">
+  <title>Skapa konto · Anti Markaryd</title>
+  <link rel="stylesheet" href="./style.css">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" defer></script>
+  <script src="./signup.js?v=am7" defer></script>
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <main class="screen active auth-shell">
+    <section class="auth-card" aria-labelledby="signup-title">
+      <div class="auth-brand"><span class="auth-brand-icon" aria-hidden="true">✳</span> ANTI MARKARYD</div>
+      <p class="auth-eyebrow">NY HÄR?</p>
+      <h1 class="auth-title" id="signup-title">Skapa konto.</h1>
+      <p class="auth-subtitle">Registrera dig med din skolmejl.</p>
+      <form id="signup-form" class="login-form">
+        <div class="input-group">
+          <label for="signup-email">Skolmejl</label>
+          <input id="signup-email" type="email" name="email" autocomplete="email" placeholder="Din skolmejl" required>
+        </div>
+        <div class="input-group">
+          <label for="signup-password">Lösenord</label>
+          <input id="signup-password" type="password" name="password" autocomplete="new-password" placeholder="Minst 12 tecken" minlength="12" required>
+        </div>
+        <button type="submit" class="btn-primary" id="signup-btn"><span>Skapa konto</span><span aria-hidden="true">↗</span></button>
+        <p id="signup-feedback" class="cert-status" role="status" aria-live="polite" hidden></p>
+      </form>
+      <p class="auth-switch">Har du redan ett konto? <a href="./">Logga in</a></p>
+    </section>
+    <p class="auth-footer">En plats för ditt nästa äventyr.</p>
+  </main>
+</body>
+</html>
