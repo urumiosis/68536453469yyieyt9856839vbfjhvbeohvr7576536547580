@@ -21,4 +21,9 @@ create policy "Direct catalog reads are for admins"
   on public.game_catalog as restrictive for select to anon, authenticated
   using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'));
 
+-- Prevent authenticated students from listing other users' profiles.
+-- The owner still has unrestricted management access in Supabase Dashboard.
+drop policy if exists "Authenticated read only" on public.profiles;
+
+
 commit;
