@@ -68,3 +68,41 @@ load them on a subsequent login. User must select a file to unlock.
 The ChromeOS user-agent check is a best-effort compatibility gate, not
 hardware attestation. Genuine device identity would require organizational
 hardware-attestation infrastructure.
+
+## Invalid upload responses and owner review
+
+The verify service checks the owner's signature before trusting any device
+ID included in the uploaded file.
+
+- **Invalid or modified certificate:** denied, with **Ogiltigt certifikat**.
+- **Authentic certificate from a different browser profile:** denied and
+  recorded as `signed_device_mismatch`. This might be a misplaced file,
+  a profile change, or attempted misuse. It does **not** prove theft.
+- **Bad signature with a matching *claimed* device:** denied and recorded as
+  `untrusted_matching_device_claim`. The claim is untrusted because the
+  signature is invalid and the submitted public key is not hardware proof.
+- **Incorrect browser-key challenge response:** denied and recorded as
+  `invalid_device_proof`.
+
+**There are no automatic permanent bans.** An attacker could intentionally
+upload a manipulated certificate or stolen file to frame someone. The events
+record only the **authenticated uploader**, not the unverified account in
+the certificate, and are de-duplicated by account, event type and hour.
+
+The owner can view reports in the **Supabase SQL Editor**:
+
+```sql
+select account_id, event_type, hour_bucket, last_seen_at
+from public.certificate_security_events
+order by last_seen_at desc
+limit 100;
+```
+
+Only the server's service role has database access to these events; users
+cannot change or read the reports. After reviewing the evidence and
+confirming account ownership, the owner can take proportionate manual
+action through **Supabase → Authentication → Users**.
+
+A web browser's key fingerprint identifies a browser profile, **not a
+physical Chromebook**. A permanent hardware-wide ban cannot be enforced
+reliably by this website.
