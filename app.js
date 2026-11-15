@@ -161,7 +161,16 @@
       body: JSON.stringify(body)
     });
     if (response.status === 401) throw new Error('Logga in igen.');
-    if (response.status === 403) throw new Error('Skolmejlen måste vara verifierad, eller logga in med det befintliga administratörskontot.');
+    if (response.status === 403) {
+      const { code } = await response.json().catch(() => ({}));
+      if (code === 'account_permanently_banned') {
+        throw new Error('Kontot har blivit permanent avstängt.');
+      }
+      if (code === 'device_permanently_banned') {
+        throw new Error('Du har blivit permanent avstängd från webbplatsen.');
+      }
+      throw new Error('Skolmejlen måste vara verifierad, eller logga in med det befintliga administratörskontot.');
+    }
     if (response.status === 409) {
       const detail = await response.json().catch(() => ({}));
       if (detail.code === 'certificate_already_issued') {
@@ -189,7 +198,10 @@
       if (generation !== loginGeneration || activeUserId !== userId) return;
       certStatus.hidden = false;
       certStatus.className = 'cert-status bad';
-      certStatus.textContent = 'Kunde inte kontrollera certifikatstatus. Ladda upp din sparade fil eller försök igen senare.';
+      const reason = String(error?.message || '');
+      certStatus.textContent = reason.includes('permanent avstängd')
+        ? reason
+        : 'Kunde inte kontrollera certifikatstatus. Ladda upp din sparade fil eller försök igen senare.';
     }
   }
 
@@ -260,10 +272,21 @@
       body: JSON.stringify(body)
     });
     if (response.status === 401) throw new Error('Logga in igen.');
-    if (response.status === 403) throw new Error('Certifikatet är ogiltigt eller har gått ut.');
+    if (response.status === 403) {
+      const { code } = await response.json().catch(() => ({}));
+      if (code === 'device_permanently_banned') {
+        throw new Error('Du har blivit permanent avstängd från webbplatsen.');
+      }
+      if (code === 'account_permanently_banned') {
+        throw new Error('Kontot har blivit permanent avstängt.');
+      }
+      throw new Error('Ogiltigt certifikat.');
+    }
     if (response.status === 409) {
-      const { code } = await response.json();
-      if (code === 'device_mismatch') throw new Error('Certifikatet gäller en annan enhet eller Chrome-profil.');
+      const { code } = await response.json().catch(() => ({}));
+      if (code === 'device_mismatch') {
+        throw new Error('Certifikatet tillhör en annan Chrome-profil. Kontakta administratören om du har bytt profil.');
+      }
       throw new Error('Enheten kunde inte verifieras. Ladda upp certifikatet igen.');
     }
     if (!response.ok) throw new Error('Certifikatet kunde inte verifieras just nu. Försök igen.');

@@ -49,3 +49,31 @@ export async function verifyLicense(token, publicKey, userId, now = Math.floor(D
     return null;
   }
 }
+
+/**
+ * Checks ONLY authenticity of the issuer signature. This deliberately does
+ * not enforce account binding, expiry, or device identity; the normal
+ * verifyLicense function still handles those access-control conditions.
+ * An authentic but expired file is NOT a forged signature.
+ */
+export async function verifyCertificateSignature(token, publicKey) {
+  if (typeof token !== 'string' ||
+      encoder.encode(token).byteLength > MAX_LICENSE_LENGTH) return null;
+  try {
+    const certificate = JSON.parse(token);
+    if (!certificate || typeof certificate !== 'object' || Array.isArray(certificate) ||
+        certificate.format !== VERSION ||
+        Object.keys(certificate).sort().join(',') !== 'claims,format,signature' ||
+        typeof certificate.signature !== 'string') return null;
+    const claims = certificate.claims;
+    if (!claims || typeof claims !== 'object' || Array.isArray(claims) ||
+        Object.keys(claims).sort().join(',') !== 'aud,device,exp,iat,license,sub') return null;
+    const signature = decodeBase64Url(certificate.signature);
+    if (signature.byteLength !== 64) return null;
+    const message = VERSION + '.' + encodeBase64Url(encoder.encode(JSON.stringify(claims)));
+    return await crypto.subtle.verify(SIGN_ALGORITHM, publicKey, signature, encoder.encode(message))
+      ? claims : null;
+  } catch {
+    return null;
+  }
+}

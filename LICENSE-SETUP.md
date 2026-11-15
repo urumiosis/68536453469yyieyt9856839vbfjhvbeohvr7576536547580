@@ -55,12 +55,13 @@ The owner should confirm that the update targeted exactly one account.
 
 ## Deployment sequence
 
-1. Apply `supabase/migrations/202611150002_one_time_certificate_issuance.sql`.
-2. Deploy the changed `issue-license` Supabase Edge Function. It validates
-   every JWT internally using `supabase.auth.getUser(jwt)`.
-3. Run `node --test tests/*.test.mjs` or inspect GitHub Actions.
-4. Merge PR into `main`, and only later switch GitHub Pages off the
-   separate maintenance branch when ready.
+1. Apply `supabase/migrations/202611150003_certificate_upload_security_events.sql`
+   if it is not already installed.
+2. Apply `supabase/migrations/202611150004_certificate_enforcement_bans.sql`.
+3. Deploy updated `issue-license` **and** `verify-license` Edge Functions.
+   They authenticate JWTs internally via Supabase Auth.
+4. Review GitHub Actions tests, and merge PR into `main`.
+5. GitHub Pages may remain on the maintenance branch until website launch.
 
 This design does **not** store certificates in the browser or silently
 load them on a subsequent login. User must select a file to unlock.
@@ -68,3 +69,59 @@ load them on a subsequent login. User must select a file to unlock.
 The ChromeOS user-agent check is a best-effort compatibility gate, not
 hardware attestation. Genuine device identity would require organizational
 hardware-attestation infrastructure.
+
+## Invalid certificate behavior
+
+The server validates the owner's digital signature separately from the
+current browser profile and the authenticated account. An uploaded
+certificate never grants the power to ban a *different* account.
+
+| Owner signature | Current device/profile | Server result |
+|---|---|---|
+| Invalid | Does not match claimed registered device | **Ogiltigt certifikat**; no ban |
+| Valid and not expired, for the logged-in account | Does not match certificate | Permanently deny this account access to the website; all its certificates become unusable |
+| Invalid | Matches the registered browser-key fingerprint **and the browser proves it owns the private key** | Permanently block that browser key, with **Du har blivit permanent avstängd från webbplatsen.** |
+| Valid, account matches, device matches | Registered browser-key challenge succeeds | Unlock the application normally |
+
+An invalid signature plus a matching *unverified claim* is **not enough**
+to ban a device. The server must first challenge the registered browser key
+and cryptographically verify the response. Authentic but **expired**
+certificates and certificates belonging to a **different account** are
+invalid for access and do not trigger these account/device bans.
+
+These bans are stored in service-only Supabase tables:
+`public.certificate_account_bans` and
+`public.certificate_device_bans`. Both `issue-license` and
+`verify-license` reject matching banned identities.
+
+**Limits:** A browser-profile key is not the physical Chromebook ID,
+so this cannot permanently block a physical computer after its browser
+identity changes. An authentic file used in a different browser profile
+might indicate loss of browser data rather than theft. By owner request
+that event still locks the logged-in account. A ban prevents further
+website unlocks, but existing downloaded JavaScript cannot be recalled.
+Supabase Auth accounts are retained for audit/review rather than erased.
+
+## Owner's review
+
+Find site account bans and registered-browser-key bans in Supabase SQL Editor:
+
+```sql
+select user_id, reason, banned_at
+from public.certificate_account_bans
+order by banned_at desc;
+```
+
+```sql
+select account_id, device_id, reason, banned_at
+from public.certificate_device_bans
+order by banned_at desc;
+```
+
+Rejected uploads remain logged in `public.certificate_security_events`
+by authenticated uploader and event type. All three tables are private
+to the server and Supabase administrators. They must not be writable
+through the website.
+
+The one-time `.certificate` creation rule is unchanged; returning
+users upload their previously downloaded file at every login.
