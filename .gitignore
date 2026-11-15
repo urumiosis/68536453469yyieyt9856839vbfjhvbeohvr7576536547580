@@ -1,0 +1,8 @@
+# Never commit private license-signing keys or Supabase environment secrets.
+.env
+.env.*
+*.pk8
+*.certificate
+*secrets.env
+supabase/functions/.env
+node_modules/

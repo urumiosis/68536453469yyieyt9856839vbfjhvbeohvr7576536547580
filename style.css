@@ -475,6 +475,20 @@ body {
   font-weight: 800;
 }
 .cert-upload .btn-play:hover { background: #0b2948; }
+.cert-device {
+  display: grid;
+  justify-items: start;
+  gap: 0.55rem;
+  margin-top: 1rem;
+  color: #35445a;
+  font-size: 0.9rem;
+}
+.cert-device input {
+  width: min(100%, 45ch);
+  padding: 0.4rem;
+  border: 1px solid var(--rule);
+  font-family: monospace;
+}
 .cert-status {
   padding: 0.8rem 0.9rem;
   border-radius: 4px;

@@ -8,11 +8,21 @@
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <!-- Pinned UMD build so window.supabase is always available -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-  <script>(function(s){s.dataset.zone='12081120',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-</head>
+  </head>
 <body>
   <div class="bg-grid"></div>
   <div class="scanlines"></div>
+
+  <!-- ChromeOS-only compatibility gate; the user-agent check is not hardware verification. -->
+  <div id="chromebook-only-screen" class="screen" hidden>
+    <div class="login-container">
+      <div class="logo-glitch"><h1>Chromebook krävs</h1></div>
+      <div class="login-form">
+        <p>Den här webbplatsen är endast tillgänglig via Chrome på en Chromebook med ChromeOS.</p>
+        <p class="tagline">Öppna sidan i din vanliga Chrome-profil på Chromebook för att fortsätta.</p>
+      </div>
+    </div>
+  </div>
 
   <!-- LOGIN SCREEN -->
   <div id="login-screen" class="screen active">
@@ -36,10 +46,22 @@
         <p id="login-error" class="error-msg" hidden></p>
       </form>
 
-      <div class="admin-note">
-        <p id="admin-note">🔒 Sidan är i testläge, kontoregistrering är tillfälligt stängt.</p>
-        <p class="small" id="admin-note-small">Endast invigda har tillträde.</p>
-      </div>
+      <section class="signup-panel" aria-labelledby="signup-heading">
+        <h2 id="signup-heading">Registrera studentkonto</h2>
+        <p class="small">Alla e0000–e9999@edu.markaryd.se kan registrera sig. Bekräfta din e-postadress först.</p>
+        <form id="signup-form" class="login-form">
+          <div class="input-group">
+            <label for="signup-email">Skolans e-postadress</label>
+            <input id="signup-email" type="email" autocomplete="email" placeholder="e1234@edu.markaryd.se" required>
+          </div>
+          <div class="input-group">
+            <label for="signup-password">Välj lösenord</label>
+            <input id="signup-password" type="password" autocomplete="new-password" minlength="12" required>
+          </div>
+          <button type="submit" class="btn-primary" id="signup-btn"><span>SKAPA KONTO</span></button>
+          <p id="signup-feedback" class="cert-status" role="status" hidden></p>
+        </form>
+      </section>
     </div>
   </div>
 
@@ -66,27 +88,34 @@
         <div class="cert-alert-icon" aria-hidden="true"><span>!</span></div>
         <p class="cert-eyebrow">SÄKERHETSKONTROLL</p>
         <h2 id="cert-heading" class="cert-heading">CERTIFIKATVERIFIERING KRÄVS</h2>
-        <p class="cert-hint">VARNING: Identiteten måste verifieras innan du får åtkomst. Ladda upp ditt certifikat för att fortsätta.</p>
+        <p class="cert-hint">Ladda upp det signerade certifikatet för den här webbläsaren.</p>
         <label class="cert-upload">
           <input type="file" id="cert-file" accept=".certificate">
           <span class="btn-play" id="cert-upload-label">Ladda upp</span>
         </label>
-        <p id="cert-status" class="cert-status" hidden></p>
+        <div class="cert-device">
+          <button type="button" class="btn-ghost" id="copy-device-id">Kopiera enhets-ID</button>
+          <button type="button" class="btn-ghost" id="auto-certificate">Skapa mitt certifikat</button>
+          <input id="device-id" type="text" aria-label="Enhets-ID" readonly hidden>
+          <p id="device-id-status" role="status" hidden></p>
+        </div>
+        <section id="auto-certificate-panel" class="auto-certificate" hidden>
+          <p id="auto-certificate-status" role="status"></p>
+          <button id="retry-certificate" type="button" class="btn-ghost" hidden>Försök igen</button>
+          <a id="download-certificate" class="btn-play cert-download-link" download="student.certificate" hidden>Ladda ned mitt certifikat</a>
+          <details id="read-certificate" hidden>
+            <summary>Visa mitt certifikat och licensen</summary>
+            <pre id="certificate-text" class="cert-example"></pre>
+          </details>
+        </section>
+        <p id="cert-status" class="cert-status" role="status" hidden></p>
+        <details id="certificate-preview" hidden>
+          <summary>Visa certifikat och licens</summary>
+          <pre id="certificate-preview-text" class="cert-example"></pre>
+        </details>
       </section>
 
 <div id="locked-site" hidden>
-      <section id="proxy-instruction" class="proxy-instruction" hidden aria-labelledby="proxy-instruction-title">
-        <div class="proxy-step-mark" aria-hidden="true">01 / EN GÅNG</div>
-        <p class="proxy-eyebrow">SNABB INSTÄLLNING</p>
-        <h3 id="proxy-instruction-title">En sista sak — sedan är du klar.</h3>
-        <p class="proxy-copy">Öppna AnyProxy i en ny flik, klicka på <strong>Browse Now</strong> och stäng sedan fliken. Det här steget behövs bara första gången.</p>
-        <a class="proxy-open-link" href="https://anyproxy.site/unblock/google" target="_blank" rel="noopener noreferrer">Öppna AnyProxy <span aria-hidden="true">↗</span></a>
-        <div class="proxy-finish-row">
-          <span class="proxy-finish-note">Klart? Du behöver inte göra om det.</span>
-          <button id="proxy-instruction-done" class="proxy-done-btn" type="button">Klart, fortsätt <span aria-hidden="true">→</span></button>
-        </div>
-        <p id="proxy-instruction-error" class="proxy-instruction-error" hidden></p>
-      </section>
       <section class="games-grid" id="games-section" aria-live="polite">
         <h3 class="section-title" id="games-heading">Spelarkivet</h3>
         <p id="games-loading">Laddar innehåll…</p>
@@ -114,9 +143,7 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
-  
-  <script src="/anti-adblock.js"></script>
+  <script src="app.js?v=am6"></script>
 
 </body>
 </html>
