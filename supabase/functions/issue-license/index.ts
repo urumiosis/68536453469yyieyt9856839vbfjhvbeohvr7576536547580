@@ -65,6 +65,12 @@ Deno.serve(async request => {
     }
 
     const db = createClient(url, serviceKey, clientOptions);
+    const accountBan = await db.from('certificate_account_bans')
+      .select('user_id').eq('user_id', user.id).maybeSingle();
+    if (accountBan.error) throw accountBan.error;
+    if (accountBan.data) return respond(403, {
+      code: 'account_permanently_banned', error: 'Account permanently banned'
+    });
     const eligibility = await db.rpc('license_account_allowed', { p_user_id: user.id, p_email: user.email });
     if (eligibility.error) throw eligibility.error;
     if (eligibility.data !== true) return respond(403, { error: 'Account not eligible' });
@@ -101,6 +107,13 @@ Deno.serve(async request => {
     } catch {
       return respond(400, { error: 'Invalid device key' });
     }
+
+    const deviceBan = await db.from('certificate_device_bans')
+      .select('device_id').eq('device_id', deviceId).maybeSingle();
+    if (deviceBan.error) throw deviceBan.error;
+    if (deviceBan.data) return respond(403, {
+      code: 'device_permanently_banned', error: 'You have been permanently banned'
+    });
 
     // Use the owner's explicit secret key when configured, otherwise generate
     // and store a service-role-only signing key at first explicit issuance.
