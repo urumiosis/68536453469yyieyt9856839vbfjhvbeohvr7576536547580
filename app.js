@@ -198,7 +198,10 @@
       if (generation !== loginGeneration || activeUserId !== userId) return;
       certStatus.hidden = false;
       certStatus.className = 'cert-status bad';
-      certStatus.textContent = 'Kunde inte kontrollera certifikatstatus. Ladda upp din sparade fil eller försök igen senare.';
+      const reason = String(error?.message || '');
+      certStatus.textContent = reason.includes('permanent avstängd')
+        ? reason
+        : 'Kunde inte kontrollera certifikatstatus. Ladda upp din sparade fil eller försök igen senare.';
     }
   }
 
