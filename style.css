@@ -634,6 +634,7 @@ a.btn-play { display: inline-block; text-decoration: none; }
   display: grid;
 }
 .auth-shell {
+  display: grid;
   position: relative;
   isolation: isolate;
   min-height: 100vh;
