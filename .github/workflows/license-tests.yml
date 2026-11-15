@@ -24,5 +24,6 @@ jobs:
           node --check app.js
           node --check scripts/license.mjs
           node --check scripts/prepare-license-secrets.mjs
+          node --check supabase/functions/_shared/signing-keys.mjs
       - name: Certificate signature tests
-        run: node --test tests/license.test.mjs
+        run: node --test tests/*.test.mjs
