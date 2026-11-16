@@ -637,3 +637,91 @@ a.btn-play { display: inline-block; text-decoration: none; }
 @media (max-width: 600px) {
   .top-bar { flex-direction: column; align-items: flex-start; }
 }
+
+/* Permanent access-denied wall (shown only for server-confirmed bans). */
+body.permanently-banned { overflow: hidden !important; }
+body.permanently-banned > :not(#ban-screen) { display: none !important; }
+.ban-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  min-height: 100dvh;
+  padding: clamp(1.25rem, 5vw, 4rem);
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 34%, rgba(145, 18, 29, .2), transparent 72%),
+    linear-gradient(145deg, #160b0e, #0c090c 55%, #180a0e);
+  color: #fff3f1;
+  text-align: center;
+}
+.ban-screen[hidden] { display: none !important; }
+.ban-screen::before {
+  content: '';
+  position: fixed;
+  inset: 20px;
+  pointer-events: none;
+  border: 1px solid rgba(232, 70, 79, .24);
+  border-radius: 12px;
+}
+.ban-wall {
+  width: min(100%, 850px);
+  position: relative;
+  padding: clamp(1.2rem, 6vw, 3.5rem) 0;
+  animation: ban-arrival .6s cubic-bezier(.18,.8,.2,1) both;
+}
+.ban-symbol {
+  display: flex;
+  justify-content: center;
+  margin: 0 auto 2rem;
+  color: #ff636d;
+  filter: drop-shadow(0 0 35px rgba(247, 57, 74, .18));
+}
+.ban-symbol svg {
+  width: clamp(88px, 15vw, 132px);
+  height: auto;
+}
+.ban-eyebrow {
+  margin: 0 0 1.1rem;
+  color: #ff717b;
+  font-size: clamp(.73rem, 1.5vw, .85rem);
+  font-weight: 800;
+  letter-spacing: .28em;
+}
+#ban-title {
+  color: #fff3f1;
+  font-family: 'Source Sans 3', system-ui, sans-serif;
+  font-size: clamp(2.7rem, 7.6vw, 6.2rem);
+  font-weight: 800;
+  letter-spacing: -.055em;
+  line-height: 1.02;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+.ban-message {
+  max-width: 540px;
+  margin: 1.65rem auto 0;
+  color: #d6b5ba;
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  line-height: 1.6;
+}
+.ban-divider {
+  width: min(140px, 40%);
+  height: 1px;
+  margin: 2.5rem auto 1.35rem;
+  background: linear-gradient(90deg, transparent, #bd4651, transparent);
+}
+.ban-footer {
+  color: #8d646b;
+  font-size: .73rem;
+  font-weight: 700;
+  letter-spacing: .22em;
+}
+@keyframes ban-arrival {
+  from { opacity: 0; transform: translateY(20px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ban-wall { animation: none; }
+}
