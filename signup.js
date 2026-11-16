@@ -35,7 +35,7 @@
       if (password.length < 12) throw new Error('Välj ett lösenord med minst 12 tecken.');
       const { error } = await supabase.auth.signUp({
         email, password,
-        options: { emailRedirectTo: new URL('./', location.href).href }
+        options: { emailRedirectTo: new URL('./confirmed.html', location.href).href }
       });
       if (error) throw error;
       form.reset();
