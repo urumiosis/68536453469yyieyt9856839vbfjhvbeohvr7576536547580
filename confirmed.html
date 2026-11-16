@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#141210">
+  <title>Bekräfta e-post · Anti Markaryd</title>
+  <link rel="stylesheet" href="./style.css?v=am10">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" defer></script>
+  <script src="./confirmed.js?v=am10" defer></script>
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <main class="screen active auth-shell">
+    <section class="auth-card" aria-labelledby="confirmation-title">
+      <div class="auth-brand"><span class="auth-brand-icon" aria-hidden="true">✳</span> ANTI MARKARYD</div>
+      <p class="auth-eyebrow">BEKRÄFTELSE</p>
+      <h1 class="auth-title" id="confirmation-title">Kontrollerar din mejl…</h1>
+      <p class="auth-subtitle" id="confirmation-message" role="status" aria-live="polite">
+        Vi verifierar din bekräftelselänk.
+      </p>
+      <a class="btn-primary" id="confirmation-login" href="./" hidden>
+        <span>Gå till inloggningen</span><span aria-hidden="true">↗</span>
+      </a>
+      <p class="auth-switch"><a href="./signup.html">Tillbaka till registreringen</a></p>
+    </section>
+    <p class="auth-footer">En plats för ditt nästa äventyr.</p>
+  </main>
+</body>
+</html>

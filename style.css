@@ -470,6 +470,7 @@ a.btn-play { display: inline-block; text-decoration: none; }
   text-transform: none;
   transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
 }
+.auth-card a.btn-primary { text-decoration: none; }
 .auth-card .btn-primary:hover:not(:disabled) {
   background: #fff1df;
   box-shadow: 0 8px 24px rgba(210,149,101,.17);
