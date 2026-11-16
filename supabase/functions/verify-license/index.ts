@@ -258,14 +258,19 @@ Deno.serve(async (request) => {
     if (consumed.error) throw consumed.error;
     if (!consumed.data) return respond(409, { code: 'device_retry' });
 
-    const [app, content, games, profile] = await Promise.all([
+    // Private assets are retrieved via the service role ONLY after the
+    // certificate signature, bound device, and challenge have been verified.
+    const [app, assets, content, games, profile] = await Promise.all([
       db.from('private_app_code').select('code').eq('id', 1).single(),
+      db.from('private_app_assets').select('html,css').eq('id', 1).single(),
       db.from('site_content').select('content').eq('id', 1).maybeSingle(),
       db.from('game_catalog').select('id,title,description,emoji,launch_url')
         .eq('enabled', true).order('sort_order', { ascending: true }),
       db.from('profiles').select('full_name,role').eq('id', user.id).maybeSingle()
     ]);
     if (app.error || typeof app.data?.code !== 'string' || !app.data.code ||
+        assets.error || typeof assets.data?.html !== 'string' || !assets.data.html ||
+        typeof assets.data?.css !== 'string' || !assets.data.css ||
         content.error || games.error || profile.error) {
       throw new Error('Could not load licensed content');
     }
@@ -273,6 +278,8 @@ Deno.serve(async (request) => {
     if (expiresInMs <= 0) return respond(403, { error: 'Invalid or expired certificate' });
     return respond(200, {
       code: app.data.code,
+      html: assets.data.html,
+      css: assets.data.css,
       content: content.data?.content ?? {},
       games: games.data,
       fullName: profile.data?.full_name ?? null,

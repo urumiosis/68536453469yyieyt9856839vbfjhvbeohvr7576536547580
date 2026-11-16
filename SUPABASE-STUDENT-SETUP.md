@@ -71,8 +71,13 @@ In Supabase Dashboard, you can:
 - Edit announcements and site text: **Table Editor → public.site_content**
   (row 1, `content` JSON).
 - Edit the game catalog: **Table Editor → public.game_catalog**.
-- Inspect the private code: **Table Editor → public.private_app_code**.
-  Back up and review changes first; don't replace the file with public code.
+- Edit the private JavaScript: **Table Editor → public.private_app_code**
+  (row 1, `code`). This powers the games and post-verification dashboard.
+- Edit the private HTML and CSS: **Table Editor → public.private_app_assets**
+  (row 1, `html` and `css`). These are separate strings and are sent with
+  the JS only after a valid certificate and browser-key challenge.
+  **Back up each field before editing** and do not place private code in
+  a public GitHub file. The `verify-license` Edge Function alone reads them.
 - Customize certificate terms: **Edge Functions → Secrets →
   `LICENSE_TEXT`**. Default validity is 90 days; optional secret
   `LICENSE_VALID_DAYS` accepts 1–365.
@@ -153,3 +158,19 @@ those two live checks require actual email and browser access.
 The school email pattern plus email confirmation proves mailbox control,
 not official school enrollment. The browser-profile identifier is not a
 Chromebook serial number or hardware attestation.
+
+## Public GitHub vs private Supabase files
+
+GitHub Pages serves only `index.html` (login, certificate upload shell),
+`signup.html`, `app.js` (Auth and proof bootstrap), `signup.js` and the
+public `style.css`. The protected **HTML**, **CSS** and **JS** are stored in
+Supabase private tables and returned only by `verify-license` after
+successful certificate and registered browser-key proof. Do not change the
+license check to merely `supabase.auth.getSession()`: password login is
+not sufficient to unlock the app.
+
+Privacy limitations: after unlocking, a legitimate user can inspect
+the HTML/CSS/JS delivered to their browser. Earlier public repository
+commits also remain in GitHub history; moving files does not erase that
+history. Keep secrets, signing private keys and administrator credentials
+out of all browser-delivered code.

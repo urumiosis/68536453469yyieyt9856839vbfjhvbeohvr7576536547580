@@ -340,7 +340,22 @@
         throw new Error('Appen kunde inte laddas. Försök igen.');
       }
 
-      if (!app.content || !Array.isArray(app.games)) throw new Error('Appens innehåll saknas.');
+      if (!app.content || !Array.isArray(app.games) ||
+          typeof app.html !== 'string' || !app.html ||
+          typeof app.css !== 'string' || !app.css ||
+          typeof app.code !== 'string' || !app.code) {
+        throw new Error('Appens privata innehåll saknas.');
+      }
+
+      // None of these assets appears in the GitHub Pages HTML or CSS.
+      // The Edge Function returns them only after successful signed
+      // certificate verification and browser-profile key proof.
+      const style = document.createElement('style');
+      style.id = 'private-app-styles';
+      style.textContent = app.css;
+      document.getElementById('private-app-styles')?.remove();
+      document.head.appendChild(style);
+      lockedSite.innerHTML = app.html;
       const initPrivateApp = new Function(app.code + '\n; return initPrivateApp;')();
       await initPrivateApp(session.user, app);
       privateAppStarted = true;
