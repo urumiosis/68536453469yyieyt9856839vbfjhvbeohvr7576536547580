@@ -90,8 +90,7 @@ Deno.serve(async request => {
     const existing = await db.from('license_devices')
       .select('activated_at').eq('user_id', user.id).maybeSingle();
     if (existing.error) throw existing.error;
-    if (input.action === 'status') return respond(200, { issued: !!existing.data?.activated_at });
-    if (existing.data?.activated_at) {
+    if (input.action !== 'status' && existing.data?.activated_at) {
       return respond(409, { code: 'certificate_already_issued' });
     }
 
@@ -114,6 +113,12 @@ Deno.serve(async request => {
     if (deviceBan.data) return respond(403, {
       code: 'device_permanently_banned', error: 'You have been permanently banned'
     });
+
+    // Status must check the registered browser key for a permanent ban,
+    // but never issues a certificate or registers a new browser profile.
+    if (input.action === 'status') {
+      return respond(200, { issued: !!existing.data?.activated_at });
+    }
 
     // Use the owner's explicit secret key when configured, otherwise generate
     // and store a service-role-only signing key at first explicit issuance.

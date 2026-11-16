@@ -107,8 +107,10 @@ test('site bans persist server-side and cannot be written by browsers', () => {
   assert.doesNotMatch(server, /auth\.admin\.deleteUser/);
 });
 
-test('frontend uses explicit permanent-ban responses for confirmed server bans', () => {
-  assert.match(ui, /Du har blivit permanent avstängd från webbplatsen/);
-  assert.match(ui, /Kontot har blivit permanent avstängt/);
+test('frontend shows the fullscreen wall for confirmed server bans', () => {
+  assert.match(ui, /showPermanentBan\(code\)/);
+  assert.match(ui, /document\.body\.classList\.add\('permanently-banned'\)/);
+  assert.match(ui, /Ditt konto har permanent spärrats från webbplatsen/);
+  assert.match(ui, /Chrome-profilens åtkomst till webbplatsen är permanent spärrad/);
   assert.match(ui, /Ogiltigt certifikat/);
 });

@@ -9,6 +9,8 @@
   const DEVICE_SIGN_ALGORITHM = { name: 'ECDSA', hash: 'SHA-256' };
 
   const loginScreen = document.getElementById('login-screen');
+  const banScreen = document.getElementById('ban-screen');
+  const banDescription = document.getElementById('ban-description');
   const dashboardScreen = document.getElementById('dashboard-screen');
   const loginForm = document.getElementById('login-form');
   const loginBtn = document.getElementById('login-btn');
@@ -35,12 +37,32 @@
   let certificateDownloadUrl = null;
 
   function showLogin() {
+    if (document.body.classList.contains('permanently-banned')) return;
     if (loginScreen) loginScreen.classList.add('active');
     if (dashboardScreen) {
       dashboardScreen.classList.remove('active');
       dashboardScreen.hidden = true;
       dashboardScreen.setAttribute('aria-hidden', 'true');
     }
+  }
+
+  function showPermanentBan(code) {
+    if (!banScreen || !banDescription) return;
+    if (document.body.classList.contains('permanently-banned')) return;
+    banDescription.textContent = code === 'device_permanently_banned'
+      ? 'Den här Chrome-profilens åtkomst till webbplatsen är permanent spärrad.'
+      : 'Ditt konto har permanent spärrats från webbplatsen.';
+    lockedSite.hidden = true;
+    loginScreen.classList.remove('active');
+    dashboardScreen.hidden = true;
+    dashboardScreen.classList.remove('active');
+    certFileInput.disabled = true;
+    issueFirstCertificateBtn.disabled = true;
+    privateAppStarted = false;
+    loginGeneration++;
+    banScreen.hidden = false;
+    document.body.classList.add('permanently-banned');
+    document.title = 'Åtkomst nekad · Anti Markaryd';
   }
 
   function showLoginError(message) {
@@ -57,6 +79,7 @@
   }
 
   function showCertificateGate(user) {
+    if (document.body.classList.contains('permanently-banned')) return;
     if (activeUserId === user.id) return;
     activeUserId = user.id;
     loginGeneration++;
@@ -163,11 +186,10 @@
     if (response.status === 401) throw new Error('Logga in igen.');
     if (response.status === 403) {
       const { code } = await response.json().catch(() => ({}));
-      if (code === 'account_permanently_banned') {
-        throw new Error('Kontot har blivit permanent avstängt.');
-      }
-      if (code === 'device_permanently_banned') {
-        throw new Error('Du har blivit permanent avstängd från webbplatsen.');
+      if (code === 'account_permanently_banned' ||
+          code === 'device_permanently_banned') {
+        showPermanentBan(code);
+        throw new Error('Åtkomst nekad.');
       }
       throw new Error('Skolmejlen måste vara verifierad, eller logga in med det befintliga administratörskontot.');
     }
@@ -190,7 +212,11 @@
       const { data, error } = await supabase.auth.getSession();
       const session = data?.session;
       if (error || !session || session.user.id !== userId) return;
-      const status = await requestCertificateIssuance(session, { action: 'status' });
+      const device = await loadDevice(userId);
+      if (generation !== loginGeneration || activeUserId !== userId) return;
+      const status = await requestCertificateIssuance(session, {
+        action: 'status', deviceKey: device.publicKey
+      });
       if (generation !== loginGeneration || activeUserId !== userId) return;
       // Unknown server response means no issuance option (fail closed).
       firstTimeCertificate.hidden = status?.issued !== false;
@@ -274,11 +300,10 @@
     if (response.status === 401) throw new Error('Logga in igen.');
     if (response.status === 403) {
       const { code } = await response.json().catch(() => ({}));
-      if (code === 'device_permanently_banned') {
-        throw new Error('Du har blivit permanent avstängd från webbplatsen.');
-      }
-      if (code === 'account_permanently_banned') {
-        throw new Error('Kontot har blivit permanent avstängt.');
+      if (code === 'account_permanently_banned' ||
+          code === 'device_permanently_banned') {
+        showPermanentBan(code);
+        throw new Error('Åtkomst nekad.');
       }
       throw new Error('Ogiltigt certifikat.');
     }
