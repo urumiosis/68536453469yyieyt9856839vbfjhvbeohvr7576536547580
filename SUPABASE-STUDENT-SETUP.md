@@ -41,8 +41,11 @@ https://supabase.com/dashboard/project/eqwlikflvpyghkvhsxmz/auth/providers
 
 Under **Email**, enable **Confirm Email** and save. Verify that a school
 mailbox receives the verification message. In **Authentication → URL
-Configuration**, set Site URL to `https://anti-markaryd.com` and allow
-`https://anti-markaryd.com/**` as a redirect.
+Configuration**, set **Site URL** to `https://anti-markaryd.com` and add
+`https://anti-markaryd.com/confirmed.html` to **Redirect URLs** as an exact URL.
+The signup page sets `emailRedirectTo` to this confirmation page. Do not set
+this callback as the main Site URL. The confirmation page verifies the returned
+Supabase session, shows confirmation status, and links to the login page.
 
 **Keep student sign-up disabled until you confirm these settings and test
 the site.** The database control is
