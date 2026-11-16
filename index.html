@@ -38,6 +38,25 @@
     </div>
   </div>
 
+  <!-- Full-screen access wall. Only activated after the authenticated
+       Supabase server confirms a permanent account or browser-key ban. -->
+  <div id="ban-screen" class="ban-screen" hidden role="alert" aria-labelledby="ban-title" aria-describedby="ban-description">
+    <div class="ban-wall">
+      <div class="ban-symbol" aria-hidden="true">
+        <svg viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M64 12L119 109H9L64 12Z" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/>
+          <path d="M64 44V78" stroke="currentColor" stroke-width="9" stroke-linecap="round"/>
+          <circle cx="64" cy="96" r="5.5" fill="currentColor"/>
+        </svg>
+      </div>
+      <p class="ban-eyebrow">ÅTKOMST NEKAD</p>
+      <h1 id="ban-title">DU ÄR<br>PERMANENT AVSTÄNGD</h1>
+      <p id="ban-description" class="ban-message">Din åtkomst till webbplatsen har spärrats permanent.</p>
+      <div class="ban-divider" aria-hidden="true"></div>
+      <p class="ban-footer">ANTI MARKARYD</p>
+    </div>
+  </div>
+
   <!-- Sign-in is the landing page; registration lives in signup.html. -->
   <div id="login-screen" class="screen active">
     <main class="auth-shell">
@@ -110,7 +129,7 @@
     </main>
   </div>
 
-  <script src="app.js?v=am8"></script>
+  <script src="app.js?v=am9"></script>
 
 </body>
 </html>
