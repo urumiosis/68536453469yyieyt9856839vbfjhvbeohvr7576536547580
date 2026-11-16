@@ -48,8 +48,6 @@
           error?.code === 'signup_disabled') {
         notice = 'Registreringen är tillfälligt stängd.';
       } else if (message.includes('skolmejl') ||
-                 message.includes('e0000') ||
-                 message.includes('e9999') ||
                  message.includes('not allowed')) {
         notice = 'Använd din skolmejl för att skapa konto.';
       } else if (message.includes('minst 12 tecken')) {
