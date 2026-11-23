@@ -1038,3 +1038,74 @@ body.permanently-banned > :not(#ban-screen) { display: none !important; }
 }
 #login-screen .review-rail-top { order: 1 !important; }
 #login-screen .review-rail-bottom { order: 3 !important; }
+
+
+/* Balanced left/right review columns around the login card. */
+#login-screen .auth-shell {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 460px) minmax(0, 1fr) !important;
+  align-items: center !important;
+  justify-content: center !important;
+  justify-items: stretch !important;
+  gap: clamp(14px, 2vw, 28px) !important;
+  width: min(100%, 1320px) !important;
+  padding: clamp(20px, 4vh, 42px) clamp(14px, 2vw, 28px) !important;
+}
+#login-screen .review-rail-left,
+#login-screen .review-rail-right {
+  order: initial !important;
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  max-width: 270px !important;
+  max-height: min(76vh, 720px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  gap: 12px !important;
+  padding: 4px !important;
+  scrollbar-width: thin;
+}
+#login-screen .review-rail-left { justify-self: end !important; }
+#login-screen .review-rail-right { justify-self: start !important; }
+#login-screen .review-rail-left .review-card,
+#login-screen .review-rail-right .review-card {
+  flex: 0 0 auto !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  padding: 12px !important;
+}
+#login-screen .review-rail-left .john-profile-image {
+  width: 76px !important;
+  height: 76px !important;
+  border-radius: 50% !important;
+}
+#login-screen .auth-card {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  order: initial !important;
+  width: 100% !important;
+  justify-self: center !important;
+}
+@media (max-width: 850px) {
+  #login-screen .auth-shell {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+  }
+  #login-screen .review-rail-left,
+  #login-screen .review-rail-right {
+    flex-direction: row !important;
+    width: calc(100vw - 28px) !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+  #login-screen .review-rail-left .review-card,
+  #login-screen .review-rail-right .review-card {
+    flex: 0 0 154px !important;
+  }
+  #login-screen .review-rail-left { order: 1 !important; }
+  #login-screen .auth-card { order: 2 !important; }
+  #login-screen .review-rail-right { order: 3 !important; }
+}
