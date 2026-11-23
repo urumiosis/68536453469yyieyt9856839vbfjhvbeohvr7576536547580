@@ -1017,3 +1017,24 @@ body.permanently-banned > :not(#ban-screen) { display: none !important; }
   #login-screen .review-rail .review-image,
   #login-screen .review-rail .john-profile-image { height: 82px; }
 }
+
+
+/* Force the login composition to stack both review rails around the form. */
+#login-screen .auth-shell {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  grid-template-columns: none !important;
+}
+#login-screen .review-rail-top,
+#login-screen .review-rail-bottom {
+  width: 100% !important;
+  align-self: stretch !important;
+}
+#login-screen .auth-card {
+  order: 2 !important;
+  align-self: center !important;
+}
+#login-screen .review-rail-top { order: 1 !important; }
+#login-screen .review-rail-bottom { order: 3 !important; }
