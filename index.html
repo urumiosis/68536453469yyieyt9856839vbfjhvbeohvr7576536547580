@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Anti Markaryd</title>
-  <link rel="stylesheet" href="style.css?v=am12">
+  <link rel="stylesheet" href="style.css?v=am13">
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <!-- Unregister obsolete service workers before account or certificate use. -->
   <script>
@@ -61,34 +61,57 @@
   <!-- Sign-in is the landing page; registration lives in signup.html. -->
   <div id="login-screen" class="screen active">
     <main class="auth-shell">
-      <section class="review-wall review-rail review-rail-left" aria-label="Recensioner – vänster" tabindex="0">
+      <section class="review-wall review-rail review-rail-top" aria-label="Recensioner – övre rad" tabindex="0">
 <article class="review-card john-profile">
-          <img src="./john.png" alt="John" class="john-profile-image">
-          <p class="review-quote">"Jag gillar verkligen att spela"</p>
-          <p class="review-name">— John</p>
-        </article>
-
+  <img src="./john.png" alt="John" class="john-profile-image">
+  <p class="review-quote">"Jag gillar verkligen att spela"</p>
+  <p class="review-name">— John</p>
+</article>
+<article class="review-card">
+  <div class="review-initials" aria-hidden="true">SH</div>
+  <p class="review-quote">"5/5, funkade bättre än Far Far Away Wi-Fi. Rekommenderar."</p>
+  <p class="review-name">— Shrek</p>
+  <span class="review-credit">Fiktiv recension</span>
+</article>
+<article class="review-card">
+  <div class="review-initials" aria-hidden="true">PS</div>
+  <p class="review-quote">"10/10, fattar fortfarande inte hur det funkar men det funkar."</p>
+  <p class="review-name">— Patrick</p>
+  <span class="review-credit">Fiktiv recension</span>
+</article>
+<article class="review-card">
+  <div class="review-initials" aria-hidden="true">GR</div>
+  <p class="review-quote">"4,9/5. Jag skulle ta över världen, men sidan var faktiskt mer intressant."</p>
+  <p class="review-name">— Gru</p>
+  <span class="review-credit">Fiktiv recension</span>
+</article>
+</section>
+      <section class="review-wall review-rail review-rail-left" aria-label="Recensioner – vänster" tabindex="0">
 <article class="review-card review-card-textonly">
-          <div class="review-initials" aria-hidden="true">BB</div>
-          <p class="review-quote">"5 stjärnor, sidan laddade snabbare än jag hann fatta vad som hände."</p>
-          <p class="review-name">— Bonnie Blue</p>
-          <span class="review-credit">Fiktiv recension</span>
-        </article>
-
+  <div class="review-initials" aria-hidden="true">BB</div>
+  <p class="review-quote">"5 stjärnor, sidan laddade snabbare än jag hann fatta vad som hände."</p>
+  <p class="review-name">— Bonnie Blue</p>
+  <span class="review-credit">Fiktiv recension</span>
+</article>
 <article class="review-card">
-          <div class="review-initials" aria-hidden="true">SF</div>
-          <p class="review-quote">"5/5 – sidan jäste snabbare än min surdeg, och resultatet blev riktigt fluffigt."</p>
-          <p class="review-name">— Sweetie Fox</p>
-          <span class="review-credit">Fiktiv recension</span>
-        </article>
-
+  <div class="review-initials" aria-hidden="true">SF</div>
+  <p class="review-quote">"5/5 – sidan jäste snabbare än min surdeg, och resultatet blev riktigt fluffigt."</p>
+  <p class="review-name">— Sweetie Fox</p>
+  <span class="review-credit">Fiktiv recension</span>
+</article>
 <article class="review-card">
-          <div class="review-initials" aria-hidden="true">WW</div>
-          <p class="review-quote">"Jag har räknat på det. Fem stjärnor är det enda rimliga resultatet."</p>
-          <p class="review-name">— Walter White</p>
-          <span class="review-credit">Fiktiv recension</span>
-        </article>
-      </section>
+  <div class="review-initials" aria-hidden="true">WW</div>
+  <p class="review-quote">"Jag har räknat på det. Fem stjärnor är det enda rimliga resultatet."</p>
+  <p class="review-name">— Walter White</p>
+  <span class="review-credit">Fiktiv recension</span>
+</article>
+<article class="review-card">
+  <div class="review-initials" aria-hidden="true">SG</div>
+  <p class="review-quote">"Om du inte gillar sidan får du pengarna tillbaka. Nästan säkert."</p>
+  <p class="review-name">— Saul Goodman</p>
+  <span class="review-credit">Fiktiv recension</span>
+</article>
+</section>
       <section class="auth-card" aria-labelledby="login-title">
         <div class="auth-brand"><span class="auth-brand-icon" aria-hidden="true">✳</span> ANTI MARKARYD</div>
         <p class="auth-eyebrow">VÄLKOMMEN TILLBAKA</p>
@@ -110,33 +133,56 @@
       </section>
       <section class="review-wall review-rail review-rail-right" aria-label="Recensioner – höger" tabindex="0">
 <article class="review-card">
-          <div class="review-initials" aria-hidden="true">SG</div>
-          <p class="review-quote">"Om du inte gillar sidan får du pengarna tillbaka. Nästan säkert."</p>
-          <p class="review-name">— Saul Goodman</p>
-          <span class="review-credit">Fiktiv recension</span>
-        </article>
-
+  <div class="review-initials" aria-hidden="true">GA</div>
+  <p class="review-quote">"Du ska inte passera… utan att först lämna ett femstjärnigt betyg."</p>
+  <p class="review-name">— Gandalf</p>
+  <span class="review-credit">Fiktiv recension</span>
+</article>
 <article class="review-card">
-          <div class="review-initials" aria-hidden="true">GA</div>
-          <p class="review-quote">"Du ska inte passera… utan att först lämna ett femstjärnigt betyg."</p>
-          <p class="review-name">— Gandalf</p>
-          <span class="review-credit">Fiktiv recension</span>
-        </article>
-
+  <div class="review-initials" aria-hidden="true">HL</div>
+  <p class="review-quote">"Jag älskar den här sidan. Och det gör ni också."</p>
+  <p class="review-name">— Homelander</p>
+  <span class="review-credit">Fiktiv recension</span>
+</article>
 <article class="review-card">
-          <div class="review-initials" aria-hidden="true">HL</div>
-          <p class="review-quote">"Jag älskar den här sidan. Och det gör ni också."</p>
-          <p class="review-name">— Homelander</p>
-          <span class="review-credit">Fiktiv recension</span>
-        </article>
-
+  <div class="review-initials" aria-hidden="true">MC</div>
+  <p class="review-quote">"Snurrade runt, testade sidan. 10/10."</p>
+  <p class="review-name">— Maxwell Cat</p>
+  <span class="review-credit">Fiktiv recension</span>
+</article>
 <article class="review-card">
-          <div class="review-initials" aria-hidden="true">MC</div>
-          <p class="review-quote">"Snurrade runt, testade sidan. 10/10."</p>
-          <p class="review-name">— Maxwell Cat</p>
-          <span class="review-credit">Fiktiv recension</span>
-        </article>
-      </section>
+  <div class="review-initials" aria-hidden="true">DD</div>
+  <p class="review-quote">"Liten recension, stor rekommendation."</p>
+  <p class="review-name">— Danny DeVito</p>
+  <span class="review-credit">Fiktiv recension</span>
+</article>
+</section>
+      <section class="review-wall review-rail review-rail-bottom" aria-label="Recensioner – nedre rad" tabindex="0">
+<article class="review-card">
+  <div class="review-initials" aria-hidden="true">MB</div>
+  <p class="review-quote">"…"</p>
+  <p class="review-name">— Mr Bean</p>
+  <span class="review-credit">Fiktiv recension</span>
+</article>
+<article class="review-card">
+  <div class="review-initials" aria-hidden="true">CO</div>
+  <p class="review-quote">"Chat, den här sidan är faktiskt peak."</p>
+  <p class="review-name">— CaseOh</p>
+  <span class="review-credit">Fiktiv recension</span>
+</article>
+<article class="review-card">
+  <div class="review-initials" aria-hidden="true">ST</div>
+  <p class="review-quote">"Byggde en hel värld. Den här sidan får ändå fem stjärnor."</p>
+  <p class="review-name">— Steve</p>
+  <span class="review-credit">Fiktiv recension</span>
+</article>
+<article class="review-card">
+  <div class="review-initials" aria-hidden="true">GM</div>
+  <p class="review-quote">"Rätt plats. Rätt tid. En mycket… intressant webbplats."</p>
+  <p class="review-name">— G-Man</p>
+  <span class="review-credit">Fiktiv recension</span>
+</article>
+</section>
     </main>
   </div>
 
