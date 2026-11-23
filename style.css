@@ -789,3 +789,92 @@ body.permanently-banned > :not(#ban-screen) { display: none !important; }
         height: 110px;
     }
 }
+
+
+/* Login review wall */
+.auth-shell {
+  grid-template-columns: minmax(0, 460px) minmax(280px, 370px);
+  column-gap: clamp(1.5rem, 4vw, 3rem);
+}
+.review-wall {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-content: center;
+}
+.review-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 10px;
+  text-align: center;
+  border: 1px solid rgba(233, 211, 180, .15);
+  border-radius: 14px;
+  background: rgba(35, 30, 26, .76);
+  box-shadow: 0 12px 28px rgba(0,0,0,.15);
+  animation: auth-arrive .7s ease both;
+}
+.review-image,
+.john-profile-image {
+  display: block;
+  width: 100%;
+  height: 118px;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 9px;
+  border: 1px solid rgba(233, 211, 180, .2);
+}
+.review-quote {
+  margin: 3px 0 0;
+  color: #e5d8ca;
+  font-size: .83rem;
+  line-height: 1.45;
+  font-weight: 700;
+}
+.review-name {
+  align-self: flex-end;
+  margin: 0;
+  color: #b9a895;
+  font-size: .75rem;
+}
+.review-credit {
+  color: #8e8173;
+  font-size: .62rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.review-card-textonly { justify-content: center; }
+.review-initials {
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(233, 211, 180, .2);
+  border-radius: 50%;
+  background: #49372f;
+  color: #f2dfca;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.7rem;
+  font-weight: 700;
+}
+@media (max-width: 768px) {
+  .auth-shell {
+    grid-template-columns: minmax(0, 460px);
+    row-gap: 22px;
+  }
+  .review-wall {
+    width: min(100%, 460px);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0 auto;
+  }
+  .review-image,
+  .john-profile-image { height: 110px; }
+}
+@media (max-width: 380px) {
+  .review-wall { gap: 9px; }
+  .review-card { padding: 9px 7px; }
+  .review-quote { font-size: .77rem; }
+}
