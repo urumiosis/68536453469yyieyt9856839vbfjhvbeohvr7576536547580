@@ -1311,3 +1311,23 @@ body.permanently-banned > :not(#ban-screen) { display: none !important; }
   #login-screen .review-rail-top .review-card,
   #login-screen .review-rail-bottom .review-card { flex-basis: 154px !important; }
 }
+
+
+/* Empty image frames for custom review photos; no initials or generated avatars. */
+.review-photo-slot {
+  display: block;
+  width: 100%;
+  height: 92px;
+  flex: 0 0 92px;
+  border: 1px dashed rgba(233, 211, 180, .34);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .025);
+}
+#login-screen .review-rail-left .review-photo-slot,
+#login-screen .review-rail-right .review-photo-slot {
+  height: 92px;
+  flex-basis: 92px;
+}
+@media (max-width: 600px) {
+  #login-screen .review-rail .review-photo-slot { height: 82px; flex-basis: 82px; }
+}
