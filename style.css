@@ -1190,3 +1190,124 @@ body.permanently-banned > :not(#ban-screen) { display: none !important; }
     min-height: 180px !important;
   }
 }
+
+
+/* Four-zone layout: top/bottom carousels stay horizontal; side groups are vertical. */
+#login-screen .auth-shell {
+  display: grid !important;
+  grid-template-columns: minmax(170px, 1fr) minmax(340px, 460px) minmax(170px, 1fr) !important;
+  grid-template-rows: auto minmax(0, 1fr) auto !important;
+  grid-template-areas:
+    "top top top"
+    "left center right"
+    "bottom bottom bottom" !important;
+  align-items: center !important;
+  justify-items: stretch !important;
+  gap: clamp(12px, 2vh, 22px) clamp(12px, 1.5vw, 24px) !important;
+  width: min(100%, 1480px) !important;
+  min-height: 100vh !important;
+  margin: 0 auto !important;
+  padding: clamp(14px, 2.5vh, 28px) clamp(12px, 2vw, 28px) !important;
+}
+#login-screen .review-rail-top { grid-area: top !important; }
+#login-screen .review-rail-bottom { grid-area: bottom !important; }
+#login-screen .review-rail-left { grid-area: left !important; }
+#login-screen .review-rail-right { grid-area: right !important; }
+#login-screen .auth-card {
+  grid-area: center !important;
+  width: 100% !important;
+  max-width: 460px !important;
+  justify-self: center !important;
+  align-self: center !important;
+  order: initial !important;
+}
+#login-screen .review-rail {
+  display: flex !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  width: 100% !important;
+  gap: 10px !important;
+  padding: 5px 3px 12px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scroll-snap-type: x mandatory !important;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+#login-screen .review-rail-top,
+#login-screen .review-rail-bottom {
+  flex-direction: row !important;
+  align-items: stretch !important;
+}
+#login-screen .review-rail-top .review-card,
+#login-screen .review-rail-bottom .review-card {
+  flex: 0 0 clamp(150px, 16vw, 190px) !important;
+  min-height: 175px !important;
+  scroll-snap-align: start;
+}
+#login-screen .review-rail-left,
+#login-screen .review-rail-right {
+  flex-direction: column !important;
+  align-self: center !important;
+  max-height: min(66vh, 650px) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  padding: 4px !important;
+  gap: 10px !important;
+  scrollbar-width: thin;
+}
+#login-screen .review-rail-left .review-card,
+#login-screen .review-rail-right .review-card {
+  flex: 0 0 auto !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  padding: 10px !important;
+}
+#login-screen .review-rail-left .review-initials,
+#login-screen .review-rail-right .review-initials {
+  width: 54px !important;
+  height: 54px !important;
+  font-size: 1.25rem !important;
+}
+#login-screen .review-rail .review-quote { font-size: .75rem !important; }
+#login-screen .review-rail .review-name,
+#login-screen .review-rail .review-credit { font-size: .62rem !important; }
+@media (max-width: 900px) {
+  #login-screen .auth-shell {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 14px 12px 20px !important;
+  }
+  #login-screen .review-rail-top,
+  #login-screen .review-rail-bottom {
+    width: calc(100vw - 24px) !important;
+    flex-direction: row !important;
+  }
+  #login-screen .auth-card {
+    order: 2 !important;
+    width: min(100%, 460px) !important;
+  }
+  #login-screen .review-rail-top { order: 1 !important; }
+  #login-screen .review-rail-left {
+    order: 3 !important;
+    width: min(100%, 460px) !important;
+    max-height: none !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    overflow: visible !important;
+  }
+  #login-screen .review-rail-right {
+    order: 4 !important;
+    width: min(100%, 460px) !important;
+    max-height: none !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    overflow: visible !important;
+  }
+  #login-screen .review-rail-bottom { order: 5 !important; }
+  #login-screen .review-rail-top .review-card,
+  #login-screen .review-rail-bottom .review-card { flex-basis: 154px !important; }
+}
