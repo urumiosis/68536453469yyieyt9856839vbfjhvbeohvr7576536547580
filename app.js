@@ -1,4 +1,3 @@
-/* Anti Markaryd — sign in and verify the owner-signed certificate before loading the private app. */
 (() => {
   'use strict';
 
@@ -89,7 +88,6 @@
     dashboardScreen.setAttribute('aria-hidden', 'false');
     dashboardScreen.classList.add('active');
 
-    // Every login starts locked, regardless of the previous session.
     privateAppStarted = false;
     lockedSite.hidden = true;
     certFileInput.disabled = false;
@@ -108,8 +106,6 @@
     if (certificateDownloadUrl) URL.revokeObjectURL(certificateDownloadUrl);
     certificateDownloadUrl = null;
 
-    // The status request never issues a certificate. Existing users only
-    // see the upload control; first-time users may explicitly issue once.
     void checkFirstCertificateStatus(user.id, loginGeneration);
   }
 
@@ -372,9 +368,7 @@
         throw new Error('Appens privata innehåll saknas.');
       }
 
-      // None of these assets appears in the GitHub Pages HTML or CSS.
-      // The Edge Function returns them only after successful signed
-      // certificate verification and browser-profile key proof.
+    
       const style = document.createElement('style');
       style.id = 'private-app-styles';
       style.textContent = app.css;
@@ -399,7 +393,7 @@
     }
   }
 
-  // UI compatibility gate, not a hardware attestation. Browser platform strings can be spoofed.
+
   function isChromeOSBrowser() {
     const platform = navigator.userAgentData?.platform;
     if (typeof platform === 'string' && platform) {
