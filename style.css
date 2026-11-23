@@ -878,3 +878,67 @@ body.permanently-banned > :not(#ban-screen) { display: none !important; }
   .review-card { padding: 9px 7px; }
   .review-quote { font-size: .77rem; }
 }
+
+
+/* Keep the login card prominent; reviews sit in a quiet side column. */
+@media (min-width: 769px) {
+  #login-screen .auth-shell {
+    grid-template-columns: minmax(340px, 460px) minmax(260px, 350px);
+    justify-content: center;
+    justify-items: stretch;
+    align-items: center;
+    column-gap: clamp(1.25rem, 3vw, 2.5rem);
+    padding-left: clamp(1rem, 3vw, 3rem);
+    padding-right: clamp(1rem, 3vw, 3rem);
+  }
+
+  #login-screen .auth-card {
+    width: 100%;
+    z-index: 1;
+  }
+
+  #login-screen .review-wall {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    max-width: 350px;
+    justify-self: start;
+    opacity: .88;
+  }
+
+  #login-screen .review-card {
+    padding: 9px 8px;
+    gap: 5px;
+    border-radius: 11px;
+    background: rgba(35, 30, 26, .58);
+    box-shadow: 0 6px 18px rgba(0,0,0,.10);
+  }
+
+  #login-screen .review-image,
+  #login-screen .john-profile-image {
+    height: 88px;
+  }
+
+  #login-screen .review-quote {
+    font-size: .75rem;
+    line-height: 1.35;
+  }
+
+  #login-screen .review-name { font-size: .68rem; }
+  #login-screen .review-credit { font-size: .58rem; }
+}
+
+@media (max-width: 768px) {
+  #login-screen .auth-shell {
+    grid-template-columns: minmax(0, 460px);
+    justify-items: center;
+    row-gap: 18px;
+    overflow: visible;
+  }
+
+  #login-screen .auth-card,
+  #login-screen .review-wall {
+    width: min(100%, 460px);
+  }
+
+  #login-screen .review-wall { margin: 0 auto; }
+}
