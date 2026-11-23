@@ -1109,3 +1109,84 @@ body.permanently-banned > :not(#ban-screen) { display: none !important; }
   #login-screen .auth-card { order: 2 !important; }
   #login-screen .review-rail-right { order: 3 !important; }
 }
+
+
+/* Restore horizontal carousels on both sides of the login card. */
+#login-screen .auth-shell {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 460px) minmax(0, 1fr) !important;
+  grid-template-rows: 1fr !important;
+  flex-direction: initial !important;
+  align-items: center !important;
+  justify-items: stretch !important;
+  gap: clamp(12px, 1.6vw, 24px) !important;
+  width: min(100%, 1400px) !important;
+  min-height: 100vh !important;
+  padding: clamp(18px, 4vh, 38px) clamp(12px, 2vw, 28px) !important;
+}
+#login-screen .review-rail-left,
+#login-screen .review-rail-right {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: stretch !important;
+  justify-self: stretch !important;
+  align-self: center !important;
+  width: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  min-width: 0 !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  gap: 10px !important;
+  padding: 5px 3px 12px !important;
+}
+#login-screen .review-rail-left .review-card,
+#login-screen .review-rail-right .review-card {
+  flex: 0 0 clamp(142px, 13vw, 172px) !important;
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: 190px !important;
+  scroll-snap-align: start;
+  padding: 10px !important;
+}
+#login-screen .review-rail-left .john-profile-image {
+  width: 76px !important;
+  height: 76px !important;
+  border-radius: 50% !important;
+}
+#login-screen .auth-card {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  order: initial !important;
+  align-self: center !important;
+  justify-self: center !important;
+  width: 100% !important;
+}
+@media (max-width: 900px) {
+  #login-screen .auth-shell {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 14px !important;
+    padding: 16px 12px 22px !important;
+  }
+  #login-screen .review-rail-left,
+  #login-screen .review-rail-right {
+    width: calc(100vw - 24px) !important;
+    max-width: 100% !important;
+    flex: 0 0 auto !important;
+  }
+  #login-screen .review-rail-left { order: 1 !important; }
+  #login-screen .auth-card { order: 2 !important; }
+  #login-screen .review-rail-right { order: 3 !important; }
+  #login-screen .review-rail-left .review-card,
+  #login-screen .review-rail-right .review-card {
+    flex-basis: 154px !important;
+    min-height: 180px !important;
+  }
+}
