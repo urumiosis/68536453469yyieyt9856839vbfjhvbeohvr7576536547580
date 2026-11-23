@@ -726,3 +726,46 @@ body.permanently-banned > :not(#ban-screen) { display: none !important; }
 @media (prefers-reduced-motion: reduce) {
   .ban-wall { animation: none; }
 }
+
+
+/* John profile */
+.john-profile {
+    width: 220px;
+    margin-left: auto;
+    margin-right: 35px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.john-profile-image {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: 14px;
+    display: block;
+}
+
+.john-profile-quote {
+    margin: 5px 0 0;
+    font-size: 15px;
+    font-style: italic;
+    color: inherit;
+}
+
+.john-profile-name {
+    font-size: 13px;
+    color: inherit;
+    opacity: 0.7;
+    align-self: flex-end;
+}
+
+@media (max-width: 768px) {
+    .john-profile {
+        width: 170px;
+        margin: 25px auto;
+    }
+}
+
